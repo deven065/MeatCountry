@@ -1,0 +1,94 @@
+{
+  "categories": [
+    { "name": "Chicken", "slug": "chicken" },
+    { "name": "Mutton", "slug": "mutton" },
+    { "name": "Seafood", "slug": "seafood" },
+    { "name": "Eggs", "slug": "eggs" }
+  ],
+  "products": [
+    {
+      "name": "Chicken Breast Boneless",
+      "slug": "chicken-breast-boneless",
+      "description": "Tender, boneless chicken breast — perfect for grills, salads, and curries.",
+      "images": [
+        "https://images.unsplash.com/photo-1604908554025-56b55c0b5b69?q=80&w=1200&auto=format&fit=crop"
+      ],
+      "price_inr": 259,
+      "unit": "500g",
+      "inventory": 100,
+      "is_featured": true,
+      "rating": 4.6,
+      "category_slug": "chicken"
+    },
+    {
+      "name": "Chicken Curry Cut (Skinless)",
+      "slug": "chicken-curry-cut-skinless",
+      "description": "Juicy chicken pieces ideal for classic Indian curries.",
+      "images": [
+        "https://images.unsplash.com/photo-1526318472351-c75fcf070305?q=80&w=1200&auto=format&fit=crop"
+      ],
+      "price_inr": 199,
+      "unit": "500g",
+      "inventory": 120,
+      "is_featured": true,
+      "rating": 4.5,
+      "category_slug": "chicken"
+    },
+    {
+      "name": "Goat Curry Cut",
+      "slug": "goat-curry-cut",
+      "description": "Premium mutton curry cut with balanced bone and meat.",
+      "images": [
+        "https://images.unsplash.com/photo-1615141982883-c7ad0e77b273?q=80&w=1200&auto=format&fit=crop"
+      ],
+      "price_inr": 499,
+      "unit": "500g",
+      "inventory": 60,
+      "is_featured": true,
+      "rating": 4.7,
+      "category_slug": "mutton"
+    },
+    {
+      "name": "Rohu (Katla) Bengali Cut",
+      "slug": "rohu-bengali-cut",
+      "description": "Freshwater Rohu, classic Bengali cut for mustard curries.",
+      "images": [
+        "https://images.unsplash.com/photo-1554303653-044fd95f3386?q=80&w=1200&auto=format&fit=crop"
+      ],
+      "price_inr": 299,
+      "unit": "500g",
+      "inventory": 80,
+      "is_featured": true,
+      "rating": 4.4,
+      "category_slug": "seafood"
+    },
+    {
+      "name": "Prawns (Medium, Deveined)",
+      "slug": "prawns-medium-deveined",
+      "description": "Cleaned and deveined prawns for stir-fries and curries.",
+      "images": [
+        "https://images.unsplash.com/photo-1544435253-f0ead49638f4?q=80&w=1200&auto=format&fit=crop"
+      ],
+      "price_inr": 549,
+      "unit": "500g",
+      "inventory": 70,
+      "is_featured": false,
+      "rating": 4.6,
+      "category_slug": "seafood"
+    },
+    {
+      "name": "Country Eggs (Pack of 6)",
+      "slug": "country-eggs-6",
+      "description": "Farm-fresh country eggs with rich yolks.",
+      "images": [
+        "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?q=80&w=1200&auto=format&fit=crop"
+      ],
+      "price_inr": 79,
+      "unit": "6 pcs",
+      "inventory": 200,
+      "is_featured": false,
+      "rating": 4.3,
+      "category_slug": "eggs"
+    }
+  ]
+}
