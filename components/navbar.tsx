@@ -124,8 +124,16 @@ export default function Navbar() {
   
   useEffect(() => {
     const sb = supabaseClient()
+    
+    // Check initial auth state
     sb.auth.getUser().then((r) => {
       setAuthed(!!r.data.user)
+    })
+
+    // Listen for auth state changes (sign in/sign out)
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+      setAuthed(!!session)
+      console.log('Auth state changed:', event, !!session)
     })
 
     // Get user location - prioritize fetching fresh location
@@ -153,6 +161,11 @@ export default function Navbar() {
     if (cachedLocation) {
       setLocation(cachedLocation)
       setLoading(false)
+    }
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe()
     }
   }, [])
 

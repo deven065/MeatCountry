@@ -118,8 +118,12 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     const sb = supabaseClient()
     try {
       if (mode === 'sign-in') {
-        const { error } = await sb.auth.signInWithPassword({ email, password })
-        if (error) throw error
+        const { data, error } = await sb.auth.signInWithPassword({ email, password })
+        if (error) {
+          console.error('Sign in error:', error)
+          throw error
+        }
+        console.log('Sign in successful:', data)
       } else {
         // Sign up the user
         const { data, error } = await sb.auth.signUp({ 
