@@ -17,7 +17,7 @@ const banners = [
     subtitleColor: "text-pink-50",
     buttonColor: "bg-white hover:bg-pink-50 text-pink-600",
     badgeText: "LIMITED TIME OFFER",
-    imageUrl: "/chicken.avif",
+    imageUrl: "/chicken.avif?v=2",
     terms: "*T&C Apply",
     showProducts: true
   },
@@ -34,7 +34,7 @@ const banners = [
     subtitleColor: "text-white",
     buttonColor: "bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-emerald-900",
     badgeBg: "bg-gradient-to-r from-blue-800 to-blue-900",
-    imageUrl: "/chicken.avif",
+    imageUrl: "/chicken.avif?v=2",
     terms: "*On party packs",
     showProducts: true,
     festive: true
@@ -152,65 +152,18 @@ export default function PromoBanner() {
                   </div>
                 )}
 
-                <div className="relative grid grid-cols-1 md:grid-cols-5 gap-4 p-4 md:p-6 h-full items-center">
-                  {/* Left side - Product images */}
-                  <div className="md:col-span-2 relative flex items-center justify-center">
-                    {currentBanner.showProducts && (
-                      <div className="relative w-full h-32 md:h-48 flex items-center justify-center gap-2">
-                        {/* Food plate 1 */}
-                        <motion.div
-                          className="relative w-24 h-24 md:w-36 md:h-36"
-                          initial={{ scale: 0, rotate: -180 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          transition={{ delay: 0.3, type: "spring" }}
-                        >
-                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 shadow-2xl">
-                            <div className="absolute inset-2 rounded-full bg-gradient-to-br from-amber-50 to-white shadow-inner" />
-                            <div className="absolute inset-4 rounded-full flex items-center justify-center">
-                              <Image
-                                src={currentBanner.imageUrl}
-                                alt="Food item"
-                                fill
-                                className="object-contain drop-shadow-2xl scale-75"
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-
-                        {/* Food plate 2 */}
-                        <motion.div
-                          className="relative w-28 h-28 md:w-40 md:h-40 -ml-6"
-                          initial={{ scale: 0, rotate: 180 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          transition={{ delay: 0.4, type: "spring" }}
-                        >
-                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-200 to-amber-200 shadow-2xl">
-                            <div className="absolute inset-2 rounded-full bg-gradient-to-br from-orange-50 to-white shadow-inner" />
-                            <div className="absolute inset-4 rounded-full flex items-center justify-center">
-                              <Image
-                                src={currentBanner.imageUrl}
-                                alt="Food item"
-                                fill
-                                className="object-contain drop-shadow-2xl scale-75"
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right side - Text content */}
-                  <div className="md:col-span-3 flex flex-col justify-center space-y-2 md:space-y-3 text-right md:pr-4">
+                <div className="relative flex items-center justify-center p-4 md:p-6 h-full overflow-hidden">
+                  {/* Text content - centered */}
+                  <div className="flex flex-col justify-center items-center space-y-1.5 md:space-y-2 text-center max-w-4xl pt-6 pb-2">
                     {/* Badge */}
                     {currentBanner.badge && (
                       <motion.div
-                        className={`inline-flex items-center justify-center self-end ${currentBanner.badgeBg} border-2 border-red-500 px-4 py-1.5 rounded-lg shadow-xl`}
+                        className={`inline-flex items-center justify-center ${currentBanner.badgeBg} border-2 border-red-500 px-3 py-1 rounded-lg shadow-xl`}
                         initial={{ scale: 0, rotate: -10 }}
                         animate={{ scale: 1, rotate: 0 }}
                         transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                       >
-                        <p className="text-xs md:text-sm font-black text-yellow-300 tracking-wide" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
+                        <p className="text-[10px] md:text-xs font-black text-yellow-300 tracking-wide" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
                           {currentBanner.badge}
                         </p>
                       </motion.div>
@@ -218,7 +171,7 @@ export default function PromoBanner() {
 
                     {currentBanner.id === 1 && (
                       <motion.div
-                        className="inline-flex items-center justify-center self-end bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 px-4 py-1 rounded-full shadow-lg border-2 border-yellow-500"
+                        className="inline-flex items-center justify-center bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 px-4 py-1 rounded-full shadow-lg border-2 border-yellow-500"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2, type: "spring" }}
@@ -256,7 +209,7 @@ export default function PromoBanner() {
 
                     {currentBanner.code && (
                       <motion.div
-                        className="inline-flex items-center justify-center self-end"
+                        className="inline-flex items-center justify-center"
                         initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
                         animate={{ opacity: 1, scale: 1, rotate: 0 }}
                         transition={{ delay: 0.5, type: "spring" }}
@@ -273,7 +226,7 @@ export default function PromoBanner() {
                     )}
 
                     <motion.button
-                      className={`inline-flex items-center gap-2 self-end ${currentBanner.buttonColor} font-black px-5 md:px-8 py-2.5 md:py-3 rounded-full shadow-xl transition-all duration-300 group-hover:gap-3 text-sm md:text-base transform group-hover:scale-105`}
+                      className={`inline-flex items-center gap-2 ${currentBanner.buttonColor} font-black px-5 md:px-8 py-2.5 md:py-3 rounded-full shadow-xl transition-all duration-300 group-hover:gap-3 text-sm md:text-base transform group-hover:scale-105`}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.4 }}
@@ -321,7 +274,7 @@ export default function PromoBanner() {
         </button>
 
         {/* Dots Indicator */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 pointer-events-none">
           {banners.map((_, index) => (
             <button
               key={index}
@@ -330,10 +283,10 @@ export default function PromoBanner() {
                 setDirection(index > currentIndex ? 1 : -1)
                 setCurrentIndex(index)
               }}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
+              className={`h-2.5 rounded-full transition-all duration-300 pointer-events-auto ${
                 index === currentIndex 
-                  ? 'w-10 bg-white shadow-lg' 
-                  : 'w-2.5 bg-white/60 hover:bg-white/90'
+                  ? 'w-10 bg-white/80 backdrop-blur-sm shadow-lg' 
+                  : 'w-2.5 bg-white/40 hover:bg-white/70'
               }`}
               aria-label={`Go to banner ${index + 1}`}
             />

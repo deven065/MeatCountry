@@ -5,10 +5,10 @@ import { fadeInUp } from '@/lib/animations'
 import { Beef, Fish, Drumstick, Egg } from 'lucide-react'
 
 const categories = [
-  { name: 'Chicken', icon: Drumstick, color: 'from-orange-500 to-red-500', slug: 'chicken', image: '/chicken.avif' },
-  { name: 'Mutton', icon: Beef, color: 'from-red-600 to-rose-600', slug: 'mutton', image: '/mutton.avif' },
-  { name: 'Seafood', icon: Fish, color: 'from-blue-500 to-cyan-500', slug: 'seafood' },
-  { name: 'Eggs', icon: Egg, color: 'from-amber-400 to-yellow-500', slug: 'eggs' }
+  { name: 'Chicken', icon: Drumstick, color: 'from-orange-500 to-red-500', slug: 'chicken', image: '/chicken.avif?v=2' },
+  { name: 'Mutton', icon: Beef, color: 'from-red-600 to-rose-600', slug: 'mutton', image: '/Mutton.avif' },
+  { name: 'Seafood', icon: Fish, color: 'from-blue-500 to-cyan-500', slug: 'seafood', image: '/Fish.avif' },
+  { name: 'Eggs', icon: Egg, color: 'from-amber-400 to-yellow-500', slug: 'eggs', image: '/Egg.avif' }
 ]
 
 export default function CategoryGrid() {

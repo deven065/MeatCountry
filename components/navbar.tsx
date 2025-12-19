@@ -1,11 +1,12 @@
 "use client"
 import Link from 'next/link'
-import { ShoppingCart, LogIn, LogOut, User, Menu, ChevronRight, X, Layers } from 'lucide-react'
+import { ShoppingCart, LogIn, LogOut, User, Menu, ChevronRight, X, Layers, MapPin } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
 import useCart from '@/components/store/cart'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
+import { getUserLocation } from '@/lib/location'
 
 const categories = [
   {
@@ -96,20 +97,85 @@ export default function Navbar() {
   const [authed, setAuthed] = useState(false)
   const [showCategories, setShowCategories] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [location, setLocation] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const indianCities = [
+    'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata',
+    'Pune', 'Jaipur', 'Surat', 'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane',
+    'Bhopal', 'Visakhapatnam', 'Pimpri-Chinchwad', 'Patna', 'Vadodara', 'Ghaziabad',
+    'Ludhiana', 'Agra', 'Nashik', 'Faridabad', 'Meerut', 'Rajkot', 'Kalyan-Dombivali',
+    'Vasai-Virar', 'Varanasi', 'Srinagar', 'Aurangabad', 'Dhanbad', 'Amritsar',
+    'Navi Mumbai', 'Allahabad', 'Ranchi', 'Howrah', 'Coimbatore', 'Jabalpur'
+  ]
+
+  const filteredCities = indianCities.filter(city => 
+    city.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const handleCitySelect = (city: string) => {
+    setLocation(city)
+    localStorage.setItem('userLocation', city)
+    setShowLocationModal(false)
+    setSearchQuery('')
+  }
   
   useEffect(() => {
     const sb = supabaseClient()
-    sb.auth.getUser().then((r) => setAuthed(!!r.data.user))
+    sb.auth.getUser().then((r) => {
+      setAuthed(!!r.data.user)
+    })
+
+    // Get user location - prioritize fetching fresh location
+    const cachedLocation = localStorage.getItem('userLocation')
+    
+    // Always try to fetch current location
+    getUserLocation()
+      .then((city) => {
+        setLocation(city)
+        localStorage.setItem('userLocation', city)
+        setLoading(false)
+      })
+      .catch((error) => {
+        console.error('Failed to get location:', error)
+        // Fall back to cached location or default
+        if (cachedLocation) {
+          setLocation(cachedLocation)
+        } else {
+          setLocation('Bangalore')
+        }
+        setLoading(false)
+      })
+    
+    // Show cached location immediately while fetching
+    if (cachedLocation) {
+      setLocation(cachedLocation)
+      setLoading(false)
+    }
   }, [])
 
   return (
     <>
       <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b shadow-soft">
         <div className="container-responsive h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <Link href="/" className="font-bold text-xl tracking-tight bg-gradient-to-r from-brand-600 to-accent-600 bg-clip-text text-transparent">
               MeatCountry
             </Link>
+            
+            {/* Location Display */}
+            <button 
+              onClick={() => setShowLocationModal(true)}
+              className="hidden md:flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 rounded-full px-4 py-1.5 text-sm transition-colors"
+            >
+              <MapPin className="h-4 w-4 text-brand-600" />
+              <span className="text-neutral-600 font-medium">
+                {loading && !location ? 'Loading...' : (location || 'Bangalore')}
+              </span>
+            </button>
+
             <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
               <button 
                 onClick={() => setShowCategories(true)}
@@ -137,8 +203,9 @@ export default function Navbar() {
             </Link>
             {authed ? (
               <div className="flex items-center gap-2">
-                <Link href={"/profile" as any} className="hidden md:inline-flex items-center gap-2 text-sm font-medium hover:text-brand-600 transition-colors">
+                <Link href={"/profile" as any} className="inline-flex items-center gap-2 text-sm font-medium hover:text-brand-600 transition-colors">
                   <User className="h-4 w-4" />
+                  <span className="hidden md:inline">Profile</span>
                 </Link>
                 <button
                   onClick={async () => { await supabaseClient().auth.signOut(); setAuthed(false) }}
@@ -305,6 +372,79 @@ export default function Navbar() {
                 )}
               </div>
             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Location Selection Modal */}
+      <AnimatePresence>
+        {showLocationModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLocationModal(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6"
+              >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-neutral-900">Select Your Location</h3>
+                  <p className="text-sm text-neutral-600 mt-1">Choose your city for delivery</p>
+                </div>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5 text-neutral-600" />
+                </button>
+              </div>
+
+              {/* Search Input */}
+              <div className="relative mb-4">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                <input
+                  type="text"
+                  placeholder="Search for your city..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-brand-500 focus:outline-none text-sm"
+                  autoFocus
+                />
+              </div>
+
+              {/* Cities List */}
+              <div className="max-h-80 overflow-y-auto">
+                {filteredCities.length > 0 ? (
+                  <div className="space-y-1">
+                    {filteredCities.map((city) => (
+                      <button
+                        key={city}
+                        onClick={() => handleCitySelect(city)}
+                        className="w-full text-left px-4 py-3 rounded-lg hover:bg-brand-50 hover:text-brand-700 transition-colors text-sm font-medium text-neutral-700"
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-neutral-500">
+                    <p className="text-sm">No cities found</p>
+                  </div>
+                )}
+              </div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
