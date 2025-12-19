@@ -16,7 +16,8 @@ const subCategories = [
   { label: 'Premium Cuts', value: 'premium' }
 ]
 
-export default async function ProductsPage({ searchParams = {} as Record<string, string | string[] | undefined> }: { searchParams?: Record<string, string | string[] | undefined> }) {
+export default async function ProductsPage(props: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const searchParams = await props.searchParams || {}
   const categoryRaw = Array.isArray(searchParams.category) ? searchParams.category[0] : searchParams.category ?? ''
   const subRaw = Array.isArray(searchParams.sub) ? searchParams.sub[0] : searchParams.sub ?? ''
 
