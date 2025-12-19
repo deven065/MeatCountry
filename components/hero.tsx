@@ -2,8 +2,38 @@
 import { motion } from 'framer-motion'
 import { fadeInUp } from '@/lib/animations'
 import { MapPin, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { getUserLocation } from '@/lib/location'
 
 export default function Hero() {
+  const [location, setLocation] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Check if we have a cached location first
+    const cachedLocation = localStorage.getItem('userLocation')
+    if (cachedLocation) {
+      setLocation(cachedLocation)
+      setLoading(false)
+    }
+
+    // Then fetch the current location (will update if different)
+    getUserLocation()
+      .then((city) => {
+        console.log('Detected location:', city)
+        setLocation(city)
+        localStorage.setItem('userLocation', city)
+        setLoading(false)
+      })
+      .catch((error) => {
+        console.error('Failed to get location:', error)
+        if (!cachedLocation) {
+          setLocation('Bangalore')
+        }
+        setLoading(false)
+      })
+  }, [])
+
   return (
     <section className="relative py-16 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-accent-50 -z-10" />
@@ -26,7 +56,9 @@ export default function Hero() {
           <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2 shadow-soft border">
             <MapPin className="h-4 w-4 text-brand-600" />
             <span className="text-sm font-medium">Delivering to</span>
-            <span className="text-sm font-semibold text-brand-600">Bangalore</span>
+            <span className="text-sm font-semibold text-brand-600">
+              {loading && !location ? 'Loading...' : (location || 'Bangalore')}
+            </span>
           </div>
         </motion.div>
 

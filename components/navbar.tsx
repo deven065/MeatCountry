@@ -43,7 +43,7 @@ export default function Navbar() {
           </Link>
           {authed ? (
             <div className="flex items-center gap-2">
-              <Link href="/profile" className="hidden md:inline-flex items-center gap-2 text-sm font-medium hover:text-brand-600 transition-colors">
+              <Link href={"/profile" as any} className="hidden md:inline-flex items-center gap-2 text-sm font-medium hover:text-brand-600 transition-colors">
                 <User className="h-4 w-4" />
               </Link>
               <button

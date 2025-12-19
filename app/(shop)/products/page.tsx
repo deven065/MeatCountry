@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import ProductGrid from '@/components/product-grid'
 import { Product } from '@/lib/types'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export const metadata = { title: 'Products — MeatCountry' }
 
@@ -82,10 +83,11 @@ export default async function ProductsPage({ searchParams = {} as Record<string,
             {subCategories.map((item) => {
               const active = sub === item.value
               const query = new URLSearchParams({ ...(category ? { category } : {}), ...(item.value !== 'all' ? { sub: item.value } : {}) }).toString()
+              const href = `/products${query ? `?${query}` : ''}` as any
               return (
                 <Link
                   key={item.value}
-                  href={`/products${query ? `?${query}` : ''}`}
+                  href={href}
                   className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${active ? 'bg-brand-600 text-white border-brand-600 shadow-soft' : 'bg-white text-neutral-700 hover:border-brand-200'}`}
                 >
                   {item.label}

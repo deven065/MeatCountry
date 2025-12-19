@@ -29,20 +29,20 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Useful Links</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="text-neutral-600 hover:text-brand-600 transition-colors">About Us</Link></li>
+              <li><Link href={"/about" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">About Us</Link></li>
               <li><Link href="/products" className="text-neutral-600 hover:text-brand-600 transition-colors">Products</Link></li>
-              <li><Link href="/faq" className="text-neutral-600 hover:text-brand-600 transition-colors">FAQ</Link></li>
-              <li><Link href="/blog" className="text-neutral-600 hover:text-brand-600 transition-colors">Blog</Link></li>
+              <li><Link href={"/faq" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">FAQ</Link></li>
+              <li><Link href={"/blog" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">Blog</Link></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/contact" className="text-neutral-600 hover:text-brand-600 transition-colors">Contact Us</Link></li>
-              <li><Link href="/terms" className="text-neutral-600 hover:text-brand-600 transition-colors">Terms & Conditions</Link></li>
-              <li><Link href="/privacy" className="text-neutral-600 hover:text-brand-600 transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/refund" className="text-neutral-600 hover:text-brand-600 transition-colors">Refund Policy</Link></li>
+              <li><Link href={"/contact" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">Contact Us</Link></li>
+              <li><Link href={"/terms" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">Terms & Conditions</Link></li>
+              <li><Link href={"/privacy" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">Privacy Policy</Link></li>
+              <li><Link href={"/refund" as any} className="text-neutral-600 hover:text-brand-600 transition-colors">Refund Policy</Link></li>
             </ul>
           </div>
           
