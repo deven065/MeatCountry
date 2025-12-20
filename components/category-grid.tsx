@@ -42,7 +42,10 @@ export default function CategoryGrid() {
                         alt={cat.name}
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
+                        <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg">{cat.name}</h3>
+                      </div>
                     </>
                   ) : (
                     <>

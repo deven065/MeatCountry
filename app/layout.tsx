@@ -2,6 +2,8 @@ import './globals.css'
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
 import Container from '@/components/container'
+import ChatSupport from '@/components/chat-support'
+import CompareFloatingBar from '@/components/compare-floating-bar'
 import SupabaseProvider from '@/providers/supabase-provider'
 
 export const metadata = {
@@ -19,6 +21,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Container>{children}</Container>
           </main>
           <Footer />
+          <ChatSupport />
+          <CompareFloatingBar />
         </SupabaseProvider>
       </body>
     </html>

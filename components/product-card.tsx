@@ -4,6 +4,9 @@ import { Product } from '@/lib/types'
 import Price from '@/components/price'
 import Rating from '@/components/rating'
 import AddToCart from '@/components/add-to-cart'
+import WishlistButton from '@/components/wishlist-button'
+import CompareButton from '@/components/compare-button'
+import QuickViewButton from '@/components/quick-view-button'
 import { motion } from 'framer-motion'
 import { fadeInUp } from '@/lib/animations'
 import { Clock } from 'lucide-react'
@@ -27,6 +30,21 @@ export default function ProductCard({ product }: { product: Product }) {
                 {discount}% OFF
               </div>
             )}
+            <div className="absolute top-2 right-2 flex flex-col gap-2">
+              <WishlistButton
+                productId={product.id}
+                productName={product.name}
+                productImage={img}
+                price={product.price_inr}
+                unit={product.unit}
+                slug={product.slug}
+              />
+              <CompareButton
+                product={product}
+                image={img}
+              />
+            </div>
+            <QuickViewButton product={product} />
           </div>
         </Link>
         <div className="p-3 space-y-2">

@@ -1,6 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server'
-import ProductGrid from '@/components/product-grid'
-import { Product } from '@/lib/types'
+import ProductsWithFilters from '@/components/products-with-filters'
+import { Product, Category } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -28,6 +28,20 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
   const { data } = await sb.from('products').select('*').order('name')
   let products = (data ?? []) as Product[]
 
+  const { data: categoriesData } = await sb.from('categories').select('*')
+  const categories = (categoriesData ?? []) as Category[]
+
+  // Apply search filter
+  const searchQuery = Array.isArray(searchParams.search) ? searchParams.search[0] : searchParams.search
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase()
+    products = products.filter((p) =>
+      p.name.toLowerCase().includes(query) ||
+      p.description.toLowerCase().includes(query) ||
+      p.slug.toLowerCase().includes(query)
+    )
+  }
+
   if (category) {
     products = products.filter((p) =>
       p.slug.toLowerCase().includes(category) || p.name.toLowerCase().includes(category)
@@ -40,7 +54,11 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
     )
   }
 
-  const title = category ? `${category.charAt(0).toUpperCase()}${category.slice(1)} Cuts` : 'All Products'
+  const title = searchQuery 
+    ? `Search results for "${searchQuery}"`
+    : category 
+    ? `${category.charAt(0).toUpperCase()}${category.slice(1)} Cuts` 
+    : 'All Products'
 
   return (
     <div className="py-8 space-y-10">
@@ -107,7 +125,7 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
           <div className="inline-flex items-center gap-2 rounded-full bg-white border px-3 py-2 shadow-soft">No antibiotic residue</div>
         </div>
 
-        <ProductGrid products={products} />
+        <ProductsWithFilters products={products} categories={categories} />
       </section>
     </div>
   )

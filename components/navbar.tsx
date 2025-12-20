@@ -1,12 +1,13 @@
 "use client"
 import Link from 'next/link'
-import { ShoppingCart, LogIn, LogOut, User, Menu, ChevronRight, X, Layers, MapPin } from 'lucide-react'
+import { ShoppingCart, LogIn, LogOut, User, Menu, ChevronRight, X, Layers, MapPin, Search, Heart } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
 import useCart from '@/components/store/cart'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { getUserLocation } from '@/lib/location'
+import { useRouter } from 'next/navigation'
 
 const categories = [
   {
@@ -101,6 +102,8 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true)
   const [showLocationModal, setShowLocationModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [productSearchQuery, setProductSearchQuery] = useState('')
+  const router = useRouter()
 
   const indianCities = [
     'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata',
@@ -120,6 +123,14 @@ export default function Navbar() {
     localStorage.setItem('userLocation', city)
     setShowLocationModal(false)
     setSearchQuery('')
+  }
+
+  const handleProductSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (productSearchQuery.trim()) {
+      router.push(`/products?search=${encodeURIComponent(productSearchQuery.trim())}`)
+      setProductSearchQuery('')
+    }
   }
   
   useEffect(() => {
@@ -189,18 +200,34 @@ export default function Navbar() {
               </span>
             </button>
 
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <button 
-                onClick={() => setShowCategories(true)}
-                className="inline-flex items-center gap-2 hover:text-brand-600 transition-colors"
-              >
-                <Layers className="h-4 w-4" />
-                Categories
-              </button>
-              <Link href="/cart" className="hover:text-brand-600 transition-colors">Cart</Link>
-            </nav>
+            {/* Search Bar */}
+            <form onSubmit={handleProductSearch} className="hidden md:block">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search for chicken, mutton, fish..."
+                  value={productSearchQuery}
+                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  className="w-64 pl-10 pr-4 py-1.5 rounded-full border-2 border-neutral-200 focus:border-brand-500 focus:outline-none text-sm bg-white transition-all"
+                />
+              </div>
+            </form>
           </div>
           <div className="flex items-center gap-4">
+            {/* Categories Navigation */}
+            <button 
+              onClick={() => setShowCategories(true)}
+              className="hidden md:inline-flex items-center gap-2 hover:text-brand-600 transition-colors text-sm font-medium"
+            >
+              <Layers className="h-4 w-4" />
+              Categories
+            </button>
+
+            <Link href="/wishlist" className="hidden md:inline-flex items-center gap-2 hover:text-brand-600 transition-colors text-sm font-medium" title="Wishlist">
+              <Heart className="h-5 w-5" />
+            </Link>
+
             <Link href="/cart" className="relative inline-flex items-center gap-2 hover:text-brand-600 transition-colors">
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
