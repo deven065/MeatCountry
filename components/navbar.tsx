@@ -9,95 +9,27 @@ import Image from 'next/image'
 import { getUserLocation } from '@/lib/location'
 import { useRouter } from 'next/navigation'
 
-const categories = [
-  {
-    id: 'poultry',
-    name: 'Poultry',
-    icon: '🐔',
-    subcategories: [
-      { 
-        name: 'Farm Chicken', 
-        items: ['Whole Chicken', 'Curry Cut', 'Breast Boneless', 'Breast with Bone', 'Thigh Boneless', 'Thigh with Bone', 'Wings', 'Keema']
-      },
-      { 
-        name: 'Desi Chicken', 
-        items: ['Whole Chicken', 'Curry Cut']
-      },
-      { 
-        name: 'Kadaknath Chicken', 
-        items: ['Whole Chicken', 'Curry Cut']
-      },
-      { 
-        name: 'Bater Chicken', 
-        items: ['Whole Chicken', 'Curry Cut']
-      },
-      { 
-        name: 'Gini Fowl Chicken', 
-        items: ['Whole Chicken', 'Curry Cut']
-      },
-      { 
-        name: 'Turkey Chicken', 
-        items: ['Whole Chicken', 'Curry Cut']
-      },
-      { 
-        name: 'Duck Chicken', 
-        items: ['Whole Chicken', 'Curry Cut']
-      }
-    ]
-  },
-  {
-    id: 'ready-to-eat',
-    name: 'Ready to eat',
-    icon: '🍽️',
-    subcategories: [
-      { name: 'Sausage', items: [] },
-      { name: 'Nuggets', items: [] },
-      { name: 'Chicken Balls/Kofta', items: [] },
-      { name: 'Patties', items: [] },
-      { name: 'Mutton', items: ['Seekh Kabab', 'Shami Kabab'] }
-    ]
-  },
-  {
-    id: 'pickle',
-    name: 'Pickle',
-    icon: '🥒',
-    subcategories: [
-      { name: 'Chicken Pickle', items: [] },
-      { name: 'Mutton Pickle', items: [] },
-      { name: 'Fish Pickle', items: [] },
-      { name: 'Eggs Pickle', items: [] }
-    ]
-  },
-  {
-    id: 'eggs-products',
-    name: 'Eggs Products',
-    icon: '🥚',
-    subcategories: [
-      { name: 'Eggs Sausage', items: [] },
-      { name: 'Egg Peda', items: [] },
-      { name: 'Egg Rasmalia', items: [] }
-    ]
-  },
-  {
-    id: 'eggs',
-    name: 'Eggs',
-    icon: '🐣',
-    subcategories: [
-      { name: 'Classic Eggs', items: [] },
-      { name: 'Desi Eggs', items: [] },
-      { name: 'Kadaknath Eggs', items: [] },
-      { name: 'Duck Eggs', items: [] },
-      { name: 'Bater Eggs', items: [] },
-      { name: 'Turkey Eggs', items: [] }
-    ]
-  }
-]
+interface Subcategory {
+  id: string
+  name: string
+  slug: string
+}
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  icon: string
+  subcategories: Subcategory[]
+}
 
 export default function Navbar() {
   const cartCount = useCart((s) => s.items.reduce((a, b) => a + b.quantity, 0))
   const [authed, setAuthed] = useState(false)
   const [showCategories, setShowCategories] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
   const [location, setLocation] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showLocationModal, setShowLocationModal] = useState(false)
@@ -135,6 +67,59 @@ export default function Navbar() {
   
   useEffect(() => {
     const sb = supabaseClient()
+    
+    // Load categories and subcategories from database
+    const loadCategories = async () => {
+      console.log('Loading categories from database...')
+      try {
+        // Try to load with icon field first
+        const catResultWithIcon = await sb
+          .from('categories')
+          .select('id, name, slug, icon')
+          .order('name', { ascending: true })
+        
+        console.log('Categories query result:', catResultWithIcon)
+        
+        // If icon field doesn't exist, load without it
+        const catResult = catResultWithIcon.error && catResultWithIcon.error.message?.includes('column')
+          ? await sb.from('categories').select('id, name, slug').order('name', { ascending: true })
+          : catResultWithIcon
+          
+        if (catResult !== catResultWithIcon) {
+          console.log('Icon column not found, loaded without it:', catResult)
+        }
+
+        const { data: subcatData, error: subcatError } = await sb
+          .from('subcategories')
+          .select('id, name, slug, category_id')
+          .order('name', { ascending: true })
+
+        console.log('Subcategories query result:', { data: subcatData, error: subcatError })
+
+        if (catResult.data) {
+          console.log('Raw categories data:', catResult.data)
+          // Map categories with their subcategories
+          const categoriesWithSubs = catResult.data.map((cat: any) => ({
+            id: cat.id,
+            name: cat.name,
+            slug: cat.slug,
+            icon: cat.icon || '📦',
+            subcategories: subcatData?.filter((sub: any) => sub.category_id === cat.id) || []
+          }))
+          
+          console.log('Categories with subcategories:', categoriesWithSubs)
+          setCategories(categoriesWithSubs)
+        } else {
+          console.error('No category data returned')
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+
+    loadCategories()
     
     // Check initial auth state
     sb.auth.getUser().then((r) => {
@@ -380,22 +365,6 @@ export default function Navbar() {
                             <span>{sub.name}</span>
                             <ChevronRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                           </Link>
-                          
-                          {sub.items && sub.items.length > 0 && (
-                            <div className="grid grid-cols-2 gap-3">
-                              {sub.items.map((item, itemIndex) => (
-                                <Link
-                                  key={itemIndex}
-                                  href={`/products?category=${activeCategory}&sub=${sub.name.toLowerCase().replace(/\s+/g, '-')}&item=${item.toLowerCase().replace(/\s+/g, '-')}`}
-                                  onClick={() => setShowCategories(false)}
-                                  className="group relative px-4 py-3 rounded-xl bg-white hover:bg-gradient-to-r hover:from-brand-50 hover:to-accent-50 text-neutral-600 hover:text-brand-700 transition-all text-sm font-semibold border-2 border-neutral-100 hover:border-brand-300 hover:shadow-md hover:scale-105"
-                                >
-                                  <span className="relative z-10">{item}</span>
-                                  <div className="absolute inset-0 bg-gradient-to-r from-brand-400 to-accent-400 opacity-0 group-hover:opacity-5 rounded-xl transition-opacity"></div>
-                                </Link>
-                              ))}
-                            </div>
-                          )}
                         </motion.div>
                       ))}
                     </div>

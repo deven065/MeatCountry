@@ -2,7 +2,19 @@
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  slug text unique not null
+  slug text unique not null,
+  icon text,
+  created_at timestamp with time zone default now()
+);
+
+-- Subcategories
+create table if not exists public.subcategories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null,
+  category_id uuid not null references public.categories(id) on delete cascade,
+  created_at timestamp with time zone default now(),
+  unique(category_id, slug)
 );
 
 -- Products
@@ -17,7 +29,9 @@ create table if not exists public.products (
   inventory integer not null default 0,
   is_featured boolean not null default false,
   rating real not null default 4.5,
-  category_id uuid references public.categories(id) on delete set null
+  category_id uuid references public.categories(id) on delete set null,
+  subcategory_id uuid references public.subcategories(id) on delete set null,
+  created_at timestamp with time zone default now()
 );
 
 -- Addresses table for delivery locations
@@ -506,16 +520,6 @@ create table if not exists public.inventory_logs (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Admin users table
-create table if not exists public.admin_users (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid unique not null references auth.users(id) on delete cascade,
-  role text not null default 'super_admin' check (role in ('super_admin')),
-  permissions jsonb default '[]',
-  is_active boolean not null default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
 -- Email notifications log
 create table if not exists public.email_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -566,7 +570,6 @@ alter table public.vendors enable row level security;
 alter table public.discount_codes enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.inventory_logs enable row level security;
-alter table public.admin_users enable row level security;
 alter table public.email_notifications enable row level security;
 alter table public.promotions enable row level security;
 alter table public.analytics_events enable row level security;
@@ -600,34 +603,6 @@ create policy "Users can create own subscriptions" on public.subscriptions for i
 
 drop policy if exists "Users can update own subscriptions" on public.subscriptions;
 create policy "Users can update own subscriptions" on public.subscriptions for update using (auth.uid() = user_id);
-
--- Admin users policies (NO RECURSION - simple auth checks only)
-drop policy if exists "Users can view own admin record" on public.admin_users;
-drop policy if exists "Authenticated users can view all admins" on public.admin_users;
-drop policy if exists "Users can create own admin record" on public.admin_users;
-drop policy if exists "Users can update own admin record" on public.admin_users;
-drop policy if exists "Super admins can view all admins" on public.admin_users;
-drop policy if exists "Super admins can manage all admins" on public.admin_users;
-drop policy if exists "Allow authenticated to view admins" on public.admin_users;
-drop policy if exists "Allow users to create own admin" on public.admin_users;
-drop policy if exists "Allow users to update own admin" on public.admin_users;
-drop policy if exists "Allow authenticated to delete admins" on public.admin_users;
-
--- Allow authenticated users to view all admin records
-create policy "Allow authenticated to view admins" on public.admin_users 
-  for select using (auth.uid() is not null);
-
--- Allow users to create their own admin record (for setup)
-create policy "Allow users to create own admin" on public.admin_users 
-  for insert with check (auth.uid() = user_id);
-
--- Allow users to update their own admin record
-create policy "Allow users to update own admin" on public.admin_users 
-  for update using (auth.uid() = user_id);
-
--- Allow authenticated users to delete admin records
-create policy "Allow authenticated to delete admins" on public.admin_users 
-  for delete using (auth.uid() is not null);
 
 -- Inventory logs policies (allow authenticated users)
 drop policy if exists "Authenticated users can view inventory logs" on public.inventory_logs;

@@ -8,7 +8,7 @@ import Image from 'next/image'
 
 export function ProductManagement() {
   const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Record<string, string>>({}) // id -> name mapping
+  const [categories, setCategories] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -21,9 +21,7 @@ export function ProductManagement() {
 
   const loadCategories = async () => {
     const sb = supabaseClient()
-    const { data, error } = await sb
-      .from('categories')
-      .select('id, name')
+    const { data, error } = await sb.from('categories').select('id, name')
 
     if (!error && data) {
       const categoryMap: Record<string, string> = {}
@@ -53,13 +51,27 @@ export function ProductManagement() {
     return true
   })
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return
+
+    const sb = supabaseClient()
+    const { error } = await sb.from('products').delete().eq('id', id)
+
+    if (error) {
+      alert('Failed to delete: ' + error.message)
+    } else {
+      alert('Product deleted successfully!')
+      loadProducts()
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Product Management</h2>
-          <p className="text-gray-600 mt-1">Manage all products on your platform</p>
+          <p className="text-gray-600 mt-1">Add, edit, and manage all products</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -182,7 +194,7 @@ export function ProductManagement() {
         )}
       </div>
 
-      {/* Add/Edit Product Modal */}
+      {/* Add/Edit Modal */}
       {(showAddModal || editingProduct) && (
         <ProductModal
           product={editingProduct}
@@ -199,22 +211,6 @@ export function ProductManagement() {
       )}
     </div>
   )
-
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-      return
-    }
-
-    const sb = supabaseClient()
-    const { error } = await sb.from('products').delete().eq('id', id)
-
-    if (error) {
-      alert('Failed to delete product: ' + error.message)
-    } else {
-      alert('Product deleted successfully!')
-      loadProducts()
-    }
-  }
 }
 
 function ProductModal({ product, onClose, onSuccess }: {
@@ -222,37 +218,117 @@ function ProductModal({ product, onClose, onSuccess }: {
   onClose: () => void
   onSuccess: () => void
 }) {
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string; icon: string }>>([])
+  const [subcategories, setSubcategories] = useState<Array<{ id: string; name: string; slug: string; category_id: string }>>([])
+  const [filteredSubcategories, setFilteredSubcategories] = useState<Array<{ id: string; name: string }>>([])
+  const [saving, setSaving] = useState(false)
+  const [loadingCategories, setLoadingCategories] = useState(true)
   const [formData, setFormData] = useState({
     name: product?.name || '',
     slug: product?.slug || '',
     description: product?.description || '',
     category_id: product?.category_id || '',
+    subcategory_id: (product as any)?.subcategory_id || '',
     price_inr: product?.price_inr || 0,
     inventory: product?.inventory || 0,
-    unit: product?.unit || 'kg',
+    unit: product?.unit || '500g',
     images: product?.images || [],
     rating: product?.rating || 4.5,
     is_featured: product?.is_featured || false,
   })
 
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string }>>([])
-  const [saving, setSaving] = useState(false)
-
-  // Load categories
   useEffect(() => {
-    const sb = supabaseClient()
-    sb.from('categories')
-      .select('id, name, slug')
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setCategories(data)
-          // Auto-select first category if creating new product
-          if (!product && data.length > 0) {
-            setFormData(prev => ({ ...prev, category_id: data[0].id }))
-          }
+    const loadCategories = async () => {
+      setLoadingCategories(true)
+      try {
+        const sb = supabaseClient()
+        
+        // Load categories - try with icon first, fallback without icon
+        let catData: any = null
+        let catError: any = null
+        
+        const result1 = await sb
+          .from('categories')
+          .select('id, name, slug, icon')
+          .order('name', { ascending: true })
+        
+        if (result1.error && result1.error.message?.includes('column')) {
+          // Icon column doesn't exist, try without it
+          const result2 = await sb
+            .from('categories')
+            .select('id, name, slug')
+            .order('name', { ascending: true })
+          catData = result2.data
+          catError = result2.error
+        } else {
+          catData = result1.data
+          catError = result1.error
         }
-      })
+        
+        // Load all subcategories - handle if table doesn't exist
+        let subData: any = null
+        let subError: any = null
+        
+        const subResult = await sb
+          .from('subcategories')
+          .select('id, name, slug, category_id')
+          .order('name', { ascending: true })
+        
+        subData = subResult.data
+        subError = subResult.error
+        
+        console.log('Categories loaded:', catData, 'Error:', catError)
+        console.log('Subcategories loaded:', subData, 'Error:', subError)
+        
+        if (catData && !catError) {
+          setCategories(catData)
+          // Only set default category if adding new product and no category selected
+          if (!product && !formData.category_id && catData.length > 0) {
+            setFormData(prev => ({ ...prev, category_id: catData[0].id }))
+          }
+        } else if (catError) {
+          console.error('Failed to load categories:', catError)
+          const errorMsg = catError.message || catError.hint || JSON.stringify(catError) || 'Unknown error'
+          alert('Failed to load categories: ' + errorMsg + '\n\nPlease make sure you have run the database schema SQL and seeded categories.')
+        }
+
+        if (subData && !subError) {
+          setSubcategories(subData)
+          // Filter subcategories if category already selected
+          if (formData.category_id) {
+            const filtered = subData.filter((s: any) => s.category_id === formData.category_id)
+            setFilteredSubcategories(filtered)
+          }
+        } else if (subError && !subError.message?.includes('does not exist')) {
+          console.warn('Subcategories table may not exist yet:', subError)
+        }
+      } catch (err) {
+        console.error('Exception loading categories:', err)
+        alert('Error loading categories: ' + (err as Error).message)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+    
+    loadCategories()
   }, [])
+
+  // Update subcategories when category changes
+  useEffect(() => {
+    if (formData.category_id && subcategories.length > 0) {
+      const filtered = subcategories.filter((s: any) => s.category_id === formData.category_id)
+      setFilteredSubcategories(filtered)
+      // Reset subcategory if it doesn't belong to new category
+      if (formData.subcategory_id) {
+        const subcatBelongsToCategory = filtered.some((s: any) => s.id === formData.subcategory_id)
+        if (!subcatBelongsToCategory) {
+          setFormData(prev => ({ ...prev, subcategory_id: '' }))
+        }
+      }
+    } else {
+      setFilteredSubcategories([])
+    }
+  }, [formData.category_id, subcategories])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -261,26 +337,17 @@ function ProductModal({ product, onClose, onSuccess }: {
     const sb = supabaseClient()
 
     if (product) {
-      // Update existing product
-      const { error } = await sb
-        .from('products')
-        .update(formData)
-        .eq('id', product.id)
-
+      const { error } = await sb.from('products').update(formData).eq('id', product.id)
       if (error) {
-        alert('Failed to update product: ' + error.message)
+        alert('Failed to update: ' + error.message)
       } else {
         alert('Product updated successfully!')
         onSuccess()
       }
     } else {
-      // Create new product
-      const { error } = await sb
-        .from('products')
-        .insert([formData])
-
+      const { error } = await sb.from('products').insert([formData])
       if (error) {
-        alert('Failed to create product: ' + error.message)
+        alert('Failed to create: ' + error.message)
       } else {
         alert('Product created successfully!')
         onSuccess()
@@ -298,7 +365,7 @@ function ProductModal({ product, onClose, onSuccess }: {
             <h3 className="text-xl font-bold text-gray-900">
               {product ? 'Edit Product' : 'Add New Product'}
             </h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">
               ✕
             </button>
           </div>
@@ -336,16 +403,55 @@ function ProductModal({ product, onClose, onSuccess }: {
                 value={formData.category_id}
                 onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                disabled={loadingCategories}
               >
-                <option value="">Select a category</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
+                {loadingCategories ? (
+                  <option value="">Loading categories...</option>
+                ) : categories.length === 0 ? (
+                  <option value="">No categories found</option>
+                ) : (
+                  <>
+                    <option value="">-- Select a category --</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon} {cat.name}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
+              {!loadingCategories && categories.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">Please add categories to the database first</p>
+              )}
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+              <select
+                value={formData.subcategory_id}
+                onChange={(e) => setFormData({ ...formData, subcategory_id: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                disabled={!formData.category_id || loadingCategories}
+              >
+                {!formData.category_id ? (
+                  <option value="">Select category first</option>
+                ) : filteredSubcategories.length === 0 ? (
+                  <option value="">No subcategories</option>
+                ) : (
+                  <>
+                    <option value="">-- Select subcategory (optional) --</option>
+                    {filteredSubcategories.map((subcat) => (
+                      <option key={subcat.id} value={subcat.id}>
+                        {subcat.name}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
               <select
@@ -372,9 +478,9 @@ function ProductModal({ product, onClose, onSuccess }: {
                 type="number"
                 required
                 min="0"
-                step="0.01"
+                step="1"
                 value={formData.price_inr}
-                onChange={(e) => setFormData({ ...formData, price_inr: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, price_inr: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
               />
             </div>
