@@ -516,6 +516,9 @@ function ProductModal({ product, onClose, onSuccess }: {
         // Save variants
         await saveVariants(product.id)
         
+        // Revalidate homepage to show updated best sellers
+        await fetch('/api/revalidate?path=/')
+        
         alert('Product updated successfully!')
         onSuccess()
       } else {
@@ -527,6 +530,9 @@ function ProductModal({ product, onClose, onSuccess }: {
           // Save variants
           await saveVariants(data[0].id)
         }
+        
+        // Revalidate homepage to show updated best sellers
+        await fetch('/api/revalidate?path=/')
         
         alert('Product created successfully!')
         onSuccess()
@@ -885,7 +891,7 @@ function ProductModal({ product, onClose, onSuccess }: {
               className="w-4 h-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
             />
             <label htmlFor="featured" className="text-sm font-medium text-gray-700">
-              Mark as Featured Product
+              Mark as Best Seller
             </label>
           </div>
 
