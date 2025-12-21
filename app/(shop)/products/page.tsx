@@ -31,6 +31,10 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
   const { data: categoriesData } = await sb.from('categories').select('*')
   const categories = (categoriesData ?? []) as Category[]
 
+  console.log('All products:', products.length, products.map(p => ({ name: p.name, category_id: p.category_id, price: p.price_inr, images: p.images })))
+  console.log('All categories:', categories.map(c => ({ id: c.id, name: c.name, slug: c.slug })))
+  console.log('Category parameter:', category)
+
   // Apply search filter
   const searchQuery = Array.isArray(searchParams.search) ? searchParams.search[0] : searchParams.search
   if (searchQuery) {
@@ -42,21 +46,66 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
     )
   }
 
+  let selectedCategory: Category | undefined
+
+  // Filter by category - handle both ID and slug
   if (category) {
-    products = products.filter((p) =>
-      p.slug.toLowerCase().includes(category) || p.name.toLowerCase().includes(category)
-    )
+    // Check if it's a UUID (category ID)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category)
+    
+    console.log('Is UUID?', isUUID)
+    
+    if (isUUID) {
+      // Direct ID match
+      const beforeFilter = products.length
+      products = products.filter((p) => p.category_id === category)
+      console.log('Filtered by category ID:', category, 'Before:', beforeFilter, 'After:', products.length)
+      selectedCategory = categories.find(c => c.id === category)
+    } else {
+      // Match by slug or name
+      const matchingCategory = categories.find(c => 
+        c.slug.toLowerCase() === category.toLowerCase() || 
+        c.name.toLowerCase() === category.toLowerCase()
+      )
+      
+      console.log('Matching category:', matchingCategory)
+      
+      if (matchingCategory) {
+        products = products.filter((p) => p.category_id === matchingCategory.id)
+        selectedCategory = matchingCategory
+      } else {
+        // Fallback to name/slug matching in product
+        products = products.filter((p) =>
+          p.slug.toLowerCase().includes(category) || p.name.toLowerCase().includes(category)
+        )
+      }
+    }
   }
 
+  console.log('Final filtered products:', products.length)
+
+  // Subcategory filter - make it more lenient, only filter if products actually match
   if (sub && sub !== 'all') {
-    products = products.filter((p) =>
-      p.slug.toLowerCase().includes(sub) || p.name.toLowerCase().includes(sub)
-    )
+    const subFiltered = products.filter((p) => {
+      const slugMatch = p.slug.toLowerCase().includes(sub.toLowerCase())
+      const nameMatch = p.name.toLowerCase().includes(sub.toLowerCase())
+      // Also check if slug starts with first word of sub (e.g., "kadaknath" matches "kadaknath-chicken")
+      const firstWord = sub.split('-')[0]
+      const firstWordMatch = p.slug.toLowerCase().includes(firstWord) || p.name.toLowerCase().includes(firstWord)
+      return slugMatch || nameMatch || firstWordMatch
+    })
+    
+    // Only apply subcategory filter if it matches something, otherwise show all category products
+    if (subFiltered.length > 0) {
+      products = subFiltered
+    }
   }
 
   const title = searchQuery 
     ? `Search results for "${searchQuery}"`
-    : category 
+    : selectedCategory
+    ? `${selectedCategory.name}` 
+    : category
     ? `${category.charAt(0).toUpperCase()}${category.slice(1)} Cuts` 
     : 'All Products'
 

@@ -9,11 +9,43 @@ import CompareButton from '@/components/compare-button'
 import QuickViewButton from '@/components/quick-view-button'
 import { motion } from 'framer-motion'
 import { fadeInUp } from '@/lib/animations'
-import { Clock } from 'lucide-react'
+import { Clock, Tag } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { supabaseClient } from '@/lib/supabase/client'
 
 export default function ProductCard({ product }: { product: Product }) {
-  const img = product.images?.[0] || '/placeholder.svg'
-  const discount = Math.floor(Math.random() * 30) + 10 // Mock discount %
+  const img = product.images?.[0] || '/chicken.png'
+  const [variants, setVariants] = useState<any[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<any>(null)
+  
+  // Load variants
+  useEffect(() => {
+    const loadVariants = async () => {
+      const sb = supabaseClient()
+      const { data, error } = await sb
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('sort_order', { ascending: true })
+      
+      console.log(`Variants for ${product.name} (ID: ${product.id}):`, { data, error })
+      
+      if (!error && data && data.length > 0) {
+        setVariants(data)
+        const defaultVariant = data.find(v => v.is_default) || data[0]
+        setSelectedVariant(defaultVariant)
+      }
+    }
+    
+    loadVariants()
+  }, [product.id])
+  
+  // Use selected variant or product default values
+  const currentPrice = selectedVariant?.price_inr || product.price_inr
+  const currentOriginalPrice = selectedVariant?.original_price || product.original_price
+  const currentUnit = selectedVariant?.unit || product.unit
+  const currentDiscount = selectedVariant?.discount_percentage || product.discount_percentage || 0
+  const hasDiscount = currentDiscount > 0
   
   return (
     <motion.div variants={fadeInUp}>
@@ -25,9 +57,21 @@ export default function ProductCard({ product }: { product: Product }) {
               alt={product.name} 
               className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" 
             />
-            {discount && (
-              <div className="absolute top-2 left-2 bg-accent-500 text-white text-xs font-bold px-2 py-1 rounded">
-                {discount}% OFF
+            {hasDiscount && (
+              <div className="absolute top-3 left-3 z-10">
+                <div className="relative">
+                  {/* Premium discount badge with gradient and shine effect */}
+                  <div className="bg-gradient-to-br from-red-500 via-red-600 to-red-700 text-white font-bold px-3 py-2 rounded-lg shadow-lg transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                    <div className="flex items-center gap-1.5">
+                      <Tag className="h-4 w-4" />
+                      <span className="text-base">{currentDiscount}% OFF</span>
+                    </div>
+                    {/* Shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 animate-shine"></div>
+                  </div>
+                  {/* Shadow underneath for depth */}
+                  <div className="absolute inset-0 bg-red-900/20 blur-md transform translate-y-1"></div>
+                </div>
               </div>
             )}
             <div className="absolute top-2 right-2 flex flex-col gap-2">
@@ -35,8 +79,8 @@ export default function ProductCard({ product }: { product: Product }) {
                 productId={product.id}
                 productName={product.name}
                 productImage={img}
-                price={product.price_inr}
-                unit={product.unit}
+                price={currentPrice}
+                unit={currentUnit}
                 slug={product.slug}
               />
               <CompareButton
@@ -53,15 +97,44 @@ export default function ProductCard({ product }: { product: Product }) {
               {product.name}
             </h3>
           </Link>
-          <p className="text-xs text-neutral-500">{product.unit}</p>
+          
           <div className="flex items-center gap-2">
             <Rating value={product.rating} />
           </div>
+          
+          {/* Variant Selection - Show as buttons for better UX */}
+          {variants.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700">Select Units:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {variants.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setSelectedVariant(v)
+                    }}
+                    className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border-2 transition-all ${
+                      selectedVariant?.id === v.id
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300'
+                    }`}
+                  >
+                    {v.unit}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-baseline gap-2">
-            <Price value={product.price_inr} />
-            <span className="text-xs text-neutral-400 line-through">
-              ₹{Math.floor(product.price_inr / (1 - discount / 100))}
-            </span>
+            <Price value={currentPrice} />
+            {currentOriginalPrice && currentOriginalPrice > currentPrice && (
+              <span className="text-xs text-neutral-400 line-through">
+                ₹{currentOriginalPrice}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1 text-xs text-green-600">
             <Clock className="h-3 w-3" />
@@ -70,10 +143,11 @@ export default function ProductCard({ product }: { product: Product }) {
           <AddToCart 
             id={product.id} 
             name={product.name} 
-            price_inr={product.price_inr} 
+            price_inr={currentPrice} 
             image={img} 
-            unit={product.unit} 
-            slug={product.slug} 
+            unit={currentUnit} 
+            slug={product.slug}
+            variant_id={selectedVariant?.id}
           />
         </div>
       </div>

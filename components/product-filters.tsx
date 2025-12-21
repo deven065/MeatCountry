@@ -39,7 +39,7 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
 
   const clearAllFilters = () => {
     onFilterChange({
-      priceRange: [0, 5000],
+      priceRange: [0, 10000],
       categories: [],
       rating: null,
       sortBy: 'popular'
@@ -49,7 +49,7 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
   const activeFilterCount = 
     (filters.categories.length > 0 ? 1 : 0) +
     (filters.rating !== null ? 1 : 0) +
-    (filters.priceRange[0] > 0 || filters.priceRange[1] < 5000 ? 1 : 0)
+    (filters.priceRange[0] > 0 || filters.priceRange[1] < 10000 ? 1 : 0)
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -145,7 +145,7 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
               <input
                 type="range"
                 min="0"
-                max="5000"
+                max="10000"
                 step="100"
                 value={filters.priceRange[1]}
                 onChange={(e) =>
@@ -162,7 +162,8 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
         </AnimatePresence>
       </div>
 
-      {/* Categories */}
+      {/* Categories - Hidden since already filtered by page URL */}
+      {/* 
       <div className="border-t pt-6">
         <button
           onClick={() => toggleSection('category')}
@@ -200,6 +201,7 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
           )}
         </AnimatePresence>
       </div>
+      */}
 
       {/* Rating */}
       <div className="border-t pt-6">

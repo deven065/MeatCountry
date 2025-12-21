@@ -4,6 +4,18 @@ export type Category = {
   slug: string
 }
 
+export type ProductVariant = {
+  id: string
+  product_id: string
+  unit: string
+  price_inr: number
+  original_price?: number
+  discount_percentage?: number
+  inventory: number
+  is_default: boolean
+  sort_order: number
+}
+
 export type Product = {
   id: string
   name: string
@@ -11,11 +23,14 @@ export type Product = {
   description: string
   images: string[]
   price_inr: number
+  original_price?: number
+  discount_percentage?: number
   unit: string
   inventory: number
   is_featured: boolean
   rating: number
   category_id: string
+  variants?: ProductVariant[]
 }
 
 export type CartItem = {
@@ -26,6 +41,7 @@ export type CartItem = {
   quantity: number
   unit: string
   slug: string
+  variant_id?: string
 }
 
 export type Address = {

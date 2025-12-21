@@ -1,5 +1,6 @@
 import { Facebook, Instagram, Twitter, Mail, Phone } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Footer() {
   return (
@@ -7,9 +8,14 @@ export default function Footer() {
       <div className="container-responsive py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <h3 className="font-bold text-xl bg-gradient-to-r from-brand-600 to-accent-600 bg-clip-text text-transparent">
-              MeatCountry
-            </h3>
+            <div className="relative h-12 w-36 mb-2">
+              <Image 
+                src="/logo.png" 
+                alt="MeatCountry" 
+                fill
+                className="object-contain object-left"
+              />
+            </div>
             <p className="text-sm text-neutral-600 leading-relaxed">
               Premium meat and seafood delivered fresh at honest prices. Quality you can trust, delivered to your door.
             </p>

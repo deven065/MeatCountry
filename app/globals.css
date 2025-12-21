@@ -19,3 +19,18 @@ body {
 .container-responsive {
   @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
 }
+
+/* Premium discount badge shine animation */
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-12deg);
+  }
+}
+
+.animate-shine {
+  animation: shine 3s infinite;
+}
+

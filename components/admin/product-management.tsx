@@ -23,11 +23,14 @@ export function ProductManagement() {
     const sb = supabaseClient()
     const { data, error } = await sb.from('categories').select('id, name')
 
+    console.log('Loading categories:', { data, error })
+
     if (!error && data) {
       const categoryMap: Record<string, string> = {}
       data.forEach((cat: any) => {
         categoryMap[cat.id] = cat.name
       })
+      console.log('Category map:', categoryMap)
       setCategories(categoryMap)
     }
   }
@@ -37,9 +40,17 @@ export function ProductManagement() {
     const { data, error } = await sb
       .from('products')
       .select('*')
-      .order('created_at', { ascending: false })
 
-    if (!error && data) {
+    console.log('Loading products:', { data, error })
+    
+    if (error) {
+      console.error('Error loading products:', error)
+      alert('Failed to load products: ' + error.message)
+    }
+    
+    if (data) {
+      console.log('Products loaded:', data.length)
+      console.log('First product category_id:', data[0]?.category_id)
       setProducts(data as Product[])
     }
     setLoading(false)
@@ -223,6 +234,16 @@ function ProductModal({ product, onClose, onSuccess }: {
   const [filteredSubcategories, setFilteredSubcategories] = useState<Array<{ id: string; name: string }>>([])
   const [saving, setSaving] = useState(false)
   const [loadingCategories, setLoadingCategories] = useState(true)
+  const [uploadingImages, setUploadingImages] = useState(false)
+  const [variants, setVariants] = useState<Array<{
+    id?: string
+    unit: string
+    price_inr: number
+    original_price: number | null
+    discount_percentage: number
+    inventory: number
+    is_default: boolean
+  }>>([])
   const [formData, setFormData] = useState({
     name: product?.name || '',
     slug: product?.slug || '',
@@ -230,12 +251,26 @@ function ProductModal({ product, onClose, onSuccess }: {
     category_id: product?.category_id || '',
     subcategory_id: (product as any)?.subcategory_id || '',
     price_inr: product?.price_inr || 0,
+    original_price: product?.original_price || null,
+    discount_percentage: product?.discount_percentage || 0,
     inventory: product?.inventory || 0,
     unit: product?.unit || '500g',
     images: product?.images || [],
     rating: product?.rating || 4.5,
     is_featured: product?.is_featured || false,
   })
+
+  // Auto-calculate discount percentage when prices change
+  useEffect(() => {
+    if (formData.original_price && formData.original_price > 0 && formData.price_inr > 0) {
+      const discount = Math.round(((formData.original_price - formData.price_inr) / formData.original_price) * 100)
+      if (discount >= 0) {
+        setFormData(prev => ({ ...prev, discount_percentage: discount }))
+      }
+    } else if (!formData.original_price || formData.original_price === 0) {
+      setFormData(prev => ({ ...prev, discount_percentage: 0 }))
+    }
+  }, [formData.original_price, formData.price_inr])
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -311,7 +346,119 @@ function ProductModal({ product, onClose, onSuccess }: {
     }
     
     loadCategories()
+
+    // Load variants if editing existing product
+    if (product?.id) {
+      loadVariants()
+    }
   }, [])
+
+  const loadVariants = async () => {
+    if (!product?.id) return
+    
+    const sb = supabaseClient()
+    const { data, error } = await sb
+      .from('product_variants')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('sort_order', { ascending: true })
+
+    if (!error && data) {
+      setVariants(data.map(v => ({
+        id: v.id,
+        unit: v.unit,
+        price_inr: v.price_inr,
+        original_price: v.original_price,
+        discount_percentage: v.discount_percentage,
+        inventory: v.inventory,
+        is_default: v.is_default
+      })))
+    }
+  }
+
+  const addVariant = () => {
+    setVariants([...variants, {
+      unit: '500g',
+      price_inr: 0,
+      original_price: null,
+      discount_percentage: 0,
+      inventory: 0,
+      is_default: variants.length === 0
+    }])
+  }
+
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index))
+  }
+
+  const updateVariant = (index: number, field: string, value: any) => {
+    const updated = [...variants]
+    updated[index] = { ...updated[index], [field]: value }
+    
+    // Auto-calculate discount for variants
+    if ((field === 'original_price' || field === 'price_inr') && updated[index].original_price && updated[index].original_price > 0 && updated[index].price_inr > 0) {
+      const discount = Math.round(((updated[index].original_price! - updated[index].price_inr) / updated[index].original_price!) * 100)
+      updated[index].discount_percentage = discount >= 0 ? discount : 0
+    }
+    
+    // If marking as default, unmark others
+    if (field === 'is_default' && value === true) {
+      updated.forEach((v, i) => {
+        if (i !== index) v.is_default = false
+      })
+    }
+    
+    setVariants(updated)
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingImages(true)
+    const sb = supabaseClient()
+    const uploadedUrls: string[] = []
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+        const filePath = `products/${fileName}`
+
+        const { data, error } = await sb.storage
+          .from('product-images')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (error) {
+          console.error('Upload error:', error)
+          alert(`Failed to upload ${file.name}: ${error.message}`)
+          continue
+        }
+
+        const { data: { publicUrl } } = sb.storage
+          .from('product-images')
+          .getPublicUrl(filePath)
+
+        uploadedUrls.push(publicUrl)
+      }
+
+      setFormData({ ...formData, images: [...formData.images, ...uploadedUrls] })
+      alert(`Successfully uploaded ${uploadedUrls.length} image(s)`)
+    } catch (err) {
+      console.error('Upload exception:', err)
+      alert('Error uploading images: ' + (err as Error).message)
+    } finally {
+      setUploadingImages(false)
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setFormData({ ...formData, images: formData.images.filter((_, i) => i !== index) })
+  }
 
   // Update subcategories when category changes
   useEffect(() => {
@@ -334,27 +481,72 @@ function ProductModal({ product, onClose, onSuccess }: {
     e.preventDefault()
     setSaving(true)
 
+    console.log('Submitting product with variants:', variants)
+    console.log('Number of variants in state:', variants.length)
+
     const sb = supabaseClient()
 
-    if (product) {
-      const { error } = await sb.from('products').update(formData).eq('id', product.id)
-      if (error) {
-        alert('Failed to update: ' + error.message)
-      } else {
+    try {
+      if (product) {
+        // Update product
+        const { error } = await sb.from('products').update(formData).eq('id', product.id)
+        if (error) throw error
+
+        // Save variants
+        await saveVariants(product.id)
+        
         alert('Product updated successfully!')
         onSuccess()
-      }
-    } else {
-      const { error } = await sb.from('products').insert([formData])
-      if (error) {
-        alert('Failed to create: ' + error.message)
       } else {
+        // Create product
+        const { data, error } = await sb.from('products').insert([formData]).select()
+        if (error) throw error
+        
+        if (data && data[0]) {
+          // Save variants
+          await saveVariants(data[0].id)
+        }
+        
         alert('Product created successfully!')
         onSuccess()
       }
+    } catch (error: any) {
+      alert('Failed to save: ' + error.message)
+    } finally {
+      setSaving(false)
     }
+  }
 
-    setSaving(false)
+  const saveVariants = async (productId: string) => {
+    if (variants.length === 0) return
+
+    const sb = supabaseClient()
+    
+    console.log('Saving variants for product:', productId, variants)
+    
+    // Delete existing variants
+    await sb.from('product_variants').delete().eq('product_id', productId)
+    
+    // Insert new variants
+    const variantsToInsert = variants.map((v, index) => ({
+      product_id: productId,
+      unit: v.unit,
+      price_inr: v.price_inr,
+      original_price: v.original_price,
+      discount_percentage: v.discount_percentage,
+      inventory: v.inventory,
+      is_default: v.is_default,
+      sort_order: index
+    }))
+    
+    console.log('Variants to insert:', variantsToInsert)
+    
+    const { error } = await sb.from('product_variants').insert(variantsToInsert)
+    if (error) {
+      console.error('Error saving variants:', error)
+      throw error
+    }
+    console.log('Variants saved successfully!')
   }
 
   return (
@@ -454,35 +646,77 @@ function ProductModal({ product, onClose, onSuccess }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
-              <select
+              <input
+                type="text"
                 required
+                list="unit-options"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              >
-                <option value="kg">kg</option>
-                <option value="500g">500g</option>
-                <option value="250g">250g</option>
-                <option value="grams">grams</option>
-                <option value="piece">piece</option>
-                <option value="dozen">dozen</option>
-                <option value="pack">pack</option>
-              </select>
+                placeholder="e.g., 500g, 1kg, piece, pack"
+              />
+              <datalist id="unit-options">
+                <option value="250g" />
+                <option value="500g" />
+                <option value="1kg" />
+                <option value="2kg" />
+                <option value="kg" />
+                <option value="grams" />
+                <option value="piece" />
+                <option value="dozen" />
+                <option value="pack" />
+                <option value="100ml" />
+                <option value="250ml" />
+                <option value="500ml" />
+                <option value="1L" />
+              </datalist>
+              <p className="text-xs text-gray-500 mt-1">Type custom unit or select from suggestions</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Selling Price (₹) *</label>
               <input
                 type="number"
                 required
                 min="0"
                 step="1"
-                value={formData.price_inr}
-                onChange={(e) => setFormData({ ...formData, price_inr: parseInt(e.target.value) })}
+                value={formData.price_inr || ''}
+                onChange={(e) => setFormData({ ...formData, price_inr: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
               />
+              <p className="text-xs text-gray-500 mt-1">The final price customers will pay</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Original Price (₹)</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={formData.original_price || ''}
+                onChange={(e) => setFormData({ ...formData, original_price: e.target.value ? parseInt(e.target.value) : null })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">MRP or original price (optional)</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Discount Percentage (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={formData.discount_percentage || ''}
+                readOnly
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500 mt-1">Auto-calculated from original & selling price</p>
             </div>
 
             <div>
@@ -491,8 +725,8 @@ function ProductModal({ product, onClose, onSuccess }: {
                 type="number"
                 required
                 min="0"
-                value={formData.inventory}
-                onChange={(e) => setFormData({ ...formData, inventory: parseInt(e.target.value) })}
+                value={formData.inventory || ''}
+                onChange={(e) => setFormData({ ...formData, inventory: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
               />
             </div>
@@ -511,29 +745,203 @@ function ProductModal({ product, onClose, onSuccess }: {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Image URLs (comma-separated)</label>
-            <input
-              type="text"
-              value={formData.images.join(', ')}
-              onChange={(e) => setFormData({ ...formData, images: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
-            />
-            {formData.images.length > 0 && formData.images[0] && (
-              <div className="mt-2 flex gap-2">
-                {formData.images.slice(0, 3).map((img, i) => (
-                  <Image
-                    key={i}
-                    src={img}
-                    alt={`Preview ${i + 1}`}
-                    width={80}
-                    height={80}
-                    className="rounded-lg object-cover"
-                  />
+          {/* Multiple Variants Section */}
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Product Variants</h3>
+                <p className="text-sm text-gray-600">Add multiple units and prices for this product</p>
+              </div>
+              <button
+                type="button"
+                onClick={addVariant}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                + Add Variant
+              </button>
+            </div>
+
+            {variants.length > 0 && (
+              <div className="space-y-3">
+                {variants.map((variant, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-6 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
+                        <input
+                          type="text"
+                          list="variant-unit-options"
+                          value={variant.unit}
+                          onChange={(e) => updateVariant(index, 'unit', e.target.value)}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-red-500"
+                          placeholder="e.g., 250g"
+                        />
+                        <datalist id="variant-unit-options">
+                          <option value="250g" />
+                          <option value="500g" />
+                          <option value="1kg" />
+                          <option value="2kg" />
+                          <option value="piece" />
+                          <option value="dozen" />
+                          <option value="pack" />
+                          <option value="100ml" />
+                          <option value="250ml" />
+                          <option value="500ml" />
+                          <option value="1L" />
+                          <option value="family pack" />
+                          <option value="combo" />
+                        </datalist>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.price_inr || ''}
+                          onChange={(e) => updateVariant(index, 'price_inr', parseInt(e.target.value) || 0)}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-red-500"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Original (₹)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.original_price || ''}
+                          onChange={(e) => updateVariant(index, 'original_price', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-red-500"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Discount %</label>
+                        <input
+                          type="number"
+                          value={variant.discount_percentage}
+                          readOnly
+                          disabled
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Stock</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.inventory || ''}
+                          onChange={(e) => updateVariant(index, 'inventory', parseInt(e.target.value) || 0)}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-red-500"
+                        />
+                      </div>
+                      
+                      <div className="flex items-end gap-2">
+                        <label className="flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={variant.is_default}
+                            onChange={(e) => updateVariant(index, 'is_default', e.target.checked)}
+                            className="rounded"
+                          />
+                          Default
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(index)}
+                          className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
+
+            {variants.length === 0 && (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <p className="text-gray-500 text-sm">No variants added. Click "Add Variant" to create multiple unit options.</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Product Images</label>
+            <div className="space-y-3">
+              {/* File Upload Area */}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="image-upload"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploadingImages}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={`flex flex-col items-center justify-center w-full h-32 px-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                    uploadingImages
+                      ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-brand-400'
+                  }`}
+                >
+                  {uploadingImages ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-600">Uploading images...</p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <p className="mt-2 text-sm text-gray-600">
+                        <span className="font-semibold text-brand-600">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 10MB</p>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Image Previews */}
+              {formData.images.length > 0 && (
+                <div className="grid grid-cols-4 gap-3">
+                  {formData.images.map((img, i) => (
+                    <div key={i} className="relative group">
+                      <img
+                        src={img}
+                        alt={`Product ${i + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      {i === 0 && (
+                        <span className="absolute bottom-1 left-1 bg-brand-600 text-white text-xs px-2 py-0.5 rounded">
+                          Primary
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {formData.images.length === 0 && (
+                <p className="text-xs text-gray-500 text-center py-2">No images uploaded yet. First image will be the primary display image.</p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

@@ -11,22 +11,25 @@ export default function CartPage() {
         <h1 className="text-2xl font-semibold">Your Cart</h1>
         {items.length === 0 && <p className="text-sm text-neutral-600">Your cart is empty.</p>}
         <div className="space-y-4">
-          {items.map((it) => (
-            <div key={it.id} className="flex items-center gap-3 border rounded-md p-3">
-              <img src={it.image} alt={it.name} className="h-20 w-20 rounded object-cover bg-neutral-100" />
-              <div className="flex-1">
-                <p className="font-medium">{it.name}</p>
-                <p className="text-xs text-neutral-500">{it.unit}</p>
-                <Price value={it.price_inr} />
+          {items.map((it) => {
+            const itemKey = it.variant_id ? `${it.id}-${it.variant_id}` : it.id
+            return (
+              <div key={itemKey} className="flex items-center gap-3 border rounded-md p-3">
+                <img src={it.image} alt={it.name} className="h-20 w-20 rounded object-cover bg-neutral-100" />
+                <div className="flex-1">
+                  <p className="font-medium">{it.name}</p>
+                  <p className="text-xs text-neutral-500">{it.unit}</p>
+                  <Price value={it.price_inr} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="h-6 w-6 border rounded" onClick={() => setQty(it.id, it.quantity - 1, it.variant_id)}>-</button>
+                  <span className="text-sm w-6 text-center">{it.quantity}</span>
+                  <button className="h-6 w-6 border rounded" onClick={() => setQty(it.id, it.quantity + 1, it.variant_id)}>+</button>
+                </div>
+                <button className="text-xs text-red-600" onClick={() => remove(it.id, it.variant_id)}>Remove</button>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="h-6 w-6 border rounded" onClick={() => setQty(it.id, it.quantity - 1)}>-</button>
-                <span className="text-sm w-6 text-center">{it.quantity}</span>
-                <button className="h-6 w-6 border rounded" onClick={() => setQty(it.id, it.quantity + 1)}>+</button>
-              </div>
-              <button className="text-xs text-red-600" onClick={() => remove(it.id)}>Remove</button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
       <div className="space-y-4">

@@ -25,12 +25,28 @@ create table if not exists public.products (
   description text not null default '',
   images jsonb not null default '[]',
   price_inr integer not null check (price_inr >= 0),
+  original_price integer check (original_price >= 0),
+  discount_percentage integer default 0 check (discount_percentage >= 0 and discount_percentage <= 100),
   unit text not null default '500g',
   inventory integer not null default 0,
   is_featured boolean not null default false,
   rating real not null default 4.5,
   category_id uuid references public.categories(id) on delete set null,
   subcategory_id uuid references public.subcategories(id) on delete set null,
+  created_at timestamp with time zone default now()
+);
+
+-- Product Variants (for multiple units and prices per product)
+create table if not exists public.product_variants (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  unit text not null,
+  price_inr integer not null check (price_inr >= 0),
+  original_price integer check (original_price >= 0),
+  discount_percentage integer default 0 check (discount_percentage >= 0 and discount_percentage <= 100),
+  inventory integer not null default 0,
+  is_default boolean not null default false,
+  sort_order integer not null default 0,
   created_at timestamp with time zone default now()
 );
 
@@ -55,6 +71,7 @@ create table if not exists public.addresses (
 -- Enable RLS
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
+alter table public.product_variants enable row level security;
 alter table public.addresses enable row level security;
 
 -- Policies: allow read for anon
@@ -64,6 +81,9 @@ create policy "Allow read categories" on public.categories for select using (tru
 drop policy if exists "Allow read products" on public.products;
 create policy "Allow read products" on public.products for select using (true);
 
+drop policy if exists "Allow read product_variants" on public.product_variants;
+create policy "Allow read product_variants" on public.product_variants for select using (true);
+
 drop policy if exists "Authenticated users can insert products" on public.products;
 create policy "Authenticated users can insert products" on public.products for insert with check (auth.uid() is not null);
 
@@ -72,6 +92,9 @@ create policy "Authenticated users can update products" on public.products for u
 
 drop policy if exists "Authenticated users can delete products" on public.products;
 create policy "Authenticated users can delete products" on public.products for delete using (auth.uid() is not null);
+
+drop policy if exists "Authenticated users can manage product_variants" on public.product_variants;
+create policy "Authenticated users can manage product_variants" on public.product_variants for all using (auth.uid() is not null);
 
 -- Address policies: users can only manage their own addresses
 drop policy if exists "Users can view own addresses" on public.addresses;

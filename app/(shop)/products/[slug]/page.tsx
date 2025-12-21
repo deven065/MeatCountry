@@ -1,5 +1,5 @@
-import { supabaseServer } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+'use client'
+import { supabaseClient } from '@/lib/supabase/client'
 import { Product } from '@/lib/types'
 import Price from '@/components/price'
 import Rating from '@/components/rating'
@@ -7,19 +7,58 @@ import AddToCart from '@/components/add-to-cart'
 import ProductReviews from '@/components/product-reviews'
 import ProductViewTracker from '@/components/product-view-tracker'
 import PersonalizedRecommendations from '@/components/personalized-recommendations'
+import { useEffect, useState, use } from 'react'
+import { Tag } from 'lucide-react'
 
-type Props = { params: { slug: string } }
+export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const unwrappedParams = use(params)
+  const [product, setProduct] = useState<Product | null>(null)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [variants, setVariants] = useState<any[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-export default async function ProductDetailPage({ params }: Props) {
-  const sb = supabaseServer()
-  const { data } = await sb.from('products').select('*').eq('slug', params.slug).single()
-  if (!data) return notFound()
-  const product = data as Product
-  const img = product.images?.[0] || '/placeholder.svg'
+  useEffect(() => {
+    const loadData = async () => {
+      const sb = supabaseClient()
+      
+      // Load product
+      const { data: productData } = await sb.from('products').select('*').eq('slug', unwrappedParams.slug).single()
+      if (!productData) return
+      
+      setProduct(productData as Product)
+      
+      // Load variants
+      const { data: variantsData } = await sb
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', productData.id)
+        .order('sort_order', { ascending: true })
+      
+      if (variantsData && variantsData.length > 0) {
+        setVariants(variantsData)
+        const defaultVariant = variantsData.find(v => v.is_default) || variantsData[0]
+        setSelectedVariant(defaultVariant)
+      }
+      
+      // Load all products for recommendations
+      const { data: allProductsData } = await sb.from('products').select('*')
+      setAllProducts((allProductsData ?? []) as Product[])
+      
+      setLoading(false)
+    }
+    
+    loadData()
+  }, [unwrappedParams.slug])
 
-  // Get all products for recommendations
-  const { data: allProductsData } = await sb.from('products').select('*')
-  const allProducts = (allProductsData ?? []) as Product[]
+  if (loading || !product) return <div className="py-20 text-center">Loading...</div>
+
+  const img = product.images?.[0] || '/chicken.png'
+  const currentPrice = selectedVariant?.price_inr || product.price_inr
+  const currentOriginalPrice = selectedVariant?.original_price || product.original_price
+  const currentUnit = selectedVariant?.unit || product.unit
+  const currentDiscount = selectedVariant?.discount_percentage || product.discount_percentage || 0
+  const hasDiscount = currentDiscount > 0
 
   return (
     <div className="space-y-12">
@@ -37,11 +76,65 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="space-y-4">
           <h1 className="text-2xl font-semibold">{product.name}</h1>
           <Rating value={product.rating} />
-          <Price value={product.price_inr} />
-          <p className="text-sm text-neutral-700">{product.unit}</p>
+          
+          {/* Discount Badge */}
+          {hasDiscount && (
+            <div className="inline-block">
+              <div className="bg-gradient-to-br from-red-500 via-red-600 to-red-700 text-white font-bold px-4 py-2 rounded-lg shadow-lg">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  <span className="text-lg">{currentDiscount}% OFF</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Price */}
+          <div className="flex items-baseline gap-3">
+            <div className="text-3xl">
+              <Price value={currentPrice} />
+            </div>
+            {currentOriginalPrice && currentOriginalPrice > currentPrice && (
+              <span className="text-xl text-neutral-400 line-through">
+                ₹{currentOriginalPrice}
+              </span>
+            )}
+          </div>
+          
+          {/* Variant Selection */}
+          {variants.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-gray-900">Select Units:</p>
+              <div className="flex flex-wrap gap-2">
+                {variants.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSelectedVariant(v)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
+                      selectedVariant?.id === v.id
+                        ? 'border-red-600 bg-red-50 text-red-700'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-red-300'
+                    }`}
+                  >
+                    {v.unit}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-neutral-600">Current selection: {currentUnit}</p>
+            </div>
+          )}
+          
           <p className="text-neutral-700 leading-relaxed">{product.description}</p>
           <div className="max-w-sm">
-            <AddToCart id={product.id} name={product.name} price_inr={product.price_inr} image={img} unit={product.unit} slug={product.slug} />
+            <AddToCart 
+              id={product.id} 
+              name={product.name} 
+              price_inr={currentPrice} 
+              image={img} 
+              unit={currentUnit} 
+              slug={product.slug}
+              variant_id={selectedVariant?.id}
+            />
           </div>
         </div>
       </div>

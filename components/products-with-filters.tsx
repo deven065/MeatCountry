@@ -18,7 +18,7 @@ type Props = {
 
 export default function ProductsWithFilters({ products, categories }: Props) {
   const [filters, setFilters] = useState<FilterState>({
-    priceRange: [0, 5000],
+    priceRange: [0, 10000],
     categories: [],
     rating: null,
     sortBy: 'popular'
@@ -31,13 +31,6 @@ export default function ProductsWithFilters({ products, categories }: Props) {
     filtered = filtered.filter(
       p => p.price_inr >= filters.priceRange[0] && p.price_inr <= filters.priceRange[1]
     )
-
-    // Filter by categories
-    if (filters.categories.length > 0) {
-      filtered = filtered.filter(p =>
-        filters.categories.some(catId => p.category_id === catId)
-      )
-    }
 
     // Filter by rating
     if (filters.rating !== null) {

@@ -170,8 +170,14 @@ export default function Navbar() {
       <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b shadow-soft">
         <div className="container-responsive h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="font-bold text-xl tracking-tight bg-gradient-to-r from-brand-600 to-accent-600 bg-clip-text text-transparent">
-              MeatCountry
+            <Link href="/" className="flex items-center relative h-12 w-36">
+              <Image 
+                src="/logo.png" 
+                alt="MeatCountry" 
+                fill
+                className="object-contain"
+                priority
+              />
             </Link>
             
             {/* Location Display */}
