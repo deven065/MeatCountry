@@ -35,6 +35,9 @@ export default function Navbar() {
   const [showLocationModal, setShowLocationModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [productSearchQuery, setProductSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
   const router = useRouter()
 
   const indianCities = [
@@ -62,8 +65,64 @@ export default function Navbar() {
     if (productSearchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(productSearchQuery.trim())}`)
       setProductSearchQuery('')
+      setShowSearchResults(false)
     }
   }
+
+  // Debounced search effect
+  useEffect(() => {
+    const delaySearch = setTimeout(async () => {
+      if (productSearchQuery.trim().length >= 2) {
+        setSearchLoading(true)
+        const sb = supabaseClient()
+        
+        // Fetch products
+        const { data: products } = await sb
+          .from('products')
+          .select('id, name, slug, images, price_inr')
+          .or(`name.ilike.%${productSearchQuery}%,description.ilike.%${productSearchQuery}%`)
+          .limit(10)
+        
+        if (products) {
+          // For each product, get the default variant price if product price is 0
+          const productsWithPrices = await Promise.all(
+            products.map(async (product) => {
+              if (!product.price_inr || product.price_inr === 0) {
+                const { data: variants } = await sb
+                  .from('product_variants')
+                  .select('price_inr, is_default')
+                  .eq('product_id', product.id)
+                  .order('sort_order', { ascending: true })
+                  .limit(1)
+                
+                if (variants && variants.length > 0) {
+                  return { ...product, price_inr: variants[0].price_inr }
+                }
+              }
+              return product
+            })
+          )
+          
+          // Filter out products with 0 or null price and limit to 5
+          const validProducts = productsWithPrices
+            .filter(p => p.price_inr && p.price_inr > 0)
+            .slice(0, 5)
+          
+          setSearchResults(validProducts)
+        } else {
+          setSearchResults([])
+        }
+        
+        setShowSearchResults(true)
+        setSearchLoading(false)
+      } else {
+        setSearchResults([])
+        setShowSearchResults(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(delaySearch)
+  }, [productSearchQuery])
   
   useEffect(() => {
     const sb = supabaseClient()
@@ -203,7 +262,7 @@ export default function Navbar() {
             </button>
 
             {/* Search Bar */}
-            <form onSubmit={handleProductSearch} className="hidden md:block">
+            <form onSubmit={handleProductSearch} className="hidden md:block relative">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
                 <input
@@ -211,8 +270,50 @@ export default function Navbar() {
                   placeholder="Search for chicken, mutton, fish..."
                   value={productSearchQuery}
                   onChange={(e) => setProductSearchQuery(e.target.value)}
+                  onFocus={() => productSearchQuery.trim().length >= 2 && setShowSearchResults(true)}
+                  onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                   className="w-64 pl-10 pr-4 py-1.5 rounded-full border-2 border-neutral-200 focus:border-brand-500 focus:outline-none text-sm bg-white transition-all"
                 />
+                
+                {/* Search Results Dropdown */}
+                <AnimatePresence>
+                  {showSearchResults && (searchResults.length > 0 || searchLoading) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full mt-2 w-96 bg-white rounded-xl shadow-2xl border border-neutral-200 overflow-hidden z-50"
+                    >
+                      {searchLoading ? (
+                        <div className="p-4 text-center text-neutral-500">Searching...</div>
+                      ) : (
+                        <div className="max-h-96 overflow-y-auto">
+                          {searchResults.map((product) => (
+                            <Link
+                              key={product.id}
+                              href={`/products/${product.slug}`}
+                              onClick={() => {
+                                setProductSearchQuery('')
+                                setShowSearchResults(false)
+                              }}
+                              className="flex items-center gap-3 p-3 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0"
+                            >
+                              <img
+                                src={product.images?.[0] || '/chicken.png'}
+                                alt={product.name}
+                                className="w-12 h-12 object-cover rounded-lg"
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium text-sm text-neutral-900">{product.name}</p>
+                                <p className="text-xs text-brand-600 font-semibold">₹{product.price_inr}</p>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </form>
           </div>
@@ -226,8 +327,9 @@ export default function Navbar() {
               Categories
             </button>
 
-            <Link href="/cart" className="relative inline-flex items-center gap-2 hover:text-brand-600 transition-colors">
+            <Link href="/cart" className="relative inline-flex items-center gap-2 hover:text-brand-600 transition-colors text-sm font-medium font-heading uppercase">
               <ShoppingCart className="h-5 w-5" />
+              Cart
               {cartCount > 0 && (
                 <motion.span 
                   key={cartCount} 
