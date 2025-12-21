@@ -62,7 +62,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="space-y-12">
-      <ProductViewTracker product={product} image={img} />
+      <ProductViewTracker product={product} image={img} price={currentPrice} unit={currentUnit} />
       
       <div className="py-10 grid grid-cols-1 md:grid-cols-2 gap-8">
         <div>

@@ -6,13 +6,44 @@ import { Clock } from 'lucide-react'
 import useRecentlyViewed from './store/recently-viewed'
 import Price from './price'
 import Rating from './rating'
+import { supabaseClient } from '@/lib/supabase/client'
 
 export default function RecentlyViewedProducts() {
   const { getRecentProducts } = useRecentlyViewed()
   const [products, setProducts] = useState<any[]>([])
 
   useEffect(() => {
-    setProducts(getRecentProducts(6))
+    const loadProducts = async () => {
+      const recentProducts = getRecentProducts(6)
+      
+      // Fix products with price 0 by loading their first variant
+      const fixedProducts = await Promise.all(
+        recentProducts.map(async (product) => {
+          if (product.price_inr === 0) {
+            const sb = supabaseClient()
+            const { data: variants } = await sb
+              .from('product_variants')
+              .select('price_inr, unit')
+              .eq('product_id', product.id)
+              .order('sort_order', { ascending: true })
+              .limit(1)
+            
+            if (variants && variants[0]) {
+              return {
+                ...product,
+                price_inr: variants[0].price_inr,
+                unit: variants[0].unit
+              }
+            }
+          }
+          return product
+        })
+      )
+      
+      setProducts(fixedProducts)
+    }
+    
+    loadProducts()
   }, [])
 
   if (products.length === 0) return null
