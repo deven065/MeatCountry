@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Montserrat:wght@400;500&family=Playfair+Display:ital@1&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,6 +16,37 @@ html, body {
 body {
   background: var(--bg);
   color: var(--fg);
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* Modern Butcher Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+p, li, span {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* Navigation & Buttons */
+nav, button, .btn {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* Heritage/Accent Class */
+.font-heritage {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-weight: 400;
 }
 
 .container-responsive {
@@ -33,4 +66,3 @@ body {
 .animate-shine {
   animation: shine 3s infinite;
 }
-

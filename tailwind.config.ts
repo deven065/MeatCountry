@@ -9,6 +9,11 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'heading': ['Oswald', 'sans-serif'],
+        'body': ['Montserrat', 'sans-serif'],
+        'heritage': ['Playfair Display', 'serif'],
+      },
       colors: {
         brand: {
           50: '#fff5f5',

@@ -135,11 +135,14 @@ export default function Navbar() {
     // Get user location - prioritize fetching fresh location
     const cachedLocation = localStorage.getItem('userLocation')
     
+    console.log('Cached location:', cachedLocation)
+    
     // Always try to fetch current location
     getUserLocation()
-      .then((city) => {
-        setLocation(city)
-        localStorage.setItem('userLocation', city)
+      .then((locationData) => {
+        console.log('Fetched location data:', locationData)
+        setLocation(locationData)
+        localStorage.setItem('userLocation', locationData)
         setLoading(false)
       })
       .catch((error) => {
@@ -148,7 +151,7 @@ export default function Navbar() {
         if (cachedLocation) {
           setLocation(cachedLocation)
         } else {
-          setLocation('Bangalore')
+          setLocation('Bangalore|Bangalore')
         }
         setLoading(false)
       })
@@ -183,12 +186,20 @@ export default function Navbar() {
             {/* Location Display */}
             <button 
               onClick={() => setShowLocationModal(true)}
-              className="hidden md:flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 rounded-full px-4 py-1.5 text-sm transition-colors"
+              className="hidden md:flex items-center gap-2 hover:bg-neutral-50 rounded-lg px-3 py-2 transition-colors"
             >
-              <MapPin className="h-4 w-4 text-brand-600" />
-              <span className="text-neutral-600 font-medium">
-                {loading && !location ? 'Loading...' : (location || 'Bangalore')}
-              </span>
+              <MapPin className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-semibold text-gray-900">
+                  {loading && !location ? 'Loading...' : (location?.split('|')[0] || 'Mumbai')}
+                </span>
+                <span className="text-xs text-gray-500 truncate max-w-[200px]">
+                  {location?.split('|')[1] || 'Select your location'}
+                </span>
+              </div>
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
 
             {/* Search Bar */}
