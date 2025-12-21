@@ -103,126 +103,151 @@ export function ProductManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Product Management</h2>
-          <p className="text-gray-600 mt-1">Add, edit, and manage all products</p>
+      <div className="bg-white rounded-xl p-6 border border-gray-200" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-wide" style={{ fontFamily: 'Oswald, sans-serif' }}>Menu Management</h2>
+            <p className="text-gray-600 mt-1" style={{ fontFamily: 'Montserrat, sans-serif' }}>Add, edit, and manage restaurant menu items</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold uppercase tracking-wide transition-colors"
+            style={{ fontFamily: 'Oswald, sans-serif', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+          >
+            ➕ Add Menu Item
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-        >
-          ➕ Add New Product
-        </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 flex gap-4">
+      <div className="bg-white rounded-xl p-4 border border-gray-200 flex gap-3" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'all' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          className={`px-5 py-2.5 rounded-lg font-bold uppercase tracking-wide text-sm transition-all ${
+            filter === 'all' ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={{ fontFamily: 'Oswald, sans-serif' }}
         >
-          All Products ({products.length})
+          All Items ({products.length})
         </button>
         <button
           onClick={() => setFilter('active')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          className={`px-5 py-2.5 rounded-lg font-bold uppercase tracking-wide text-sm transition-all ${
+            filter === 'active' ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={{ fontFamily: 'Oswald, sans-serif' }}
         >
-          In Stock ({products.filter(p => p.inventory > 0).length})
+          Available ({products.filter(p => p.inventory > 0).length})
         </button>
         <button
           onClick={() => setFilter('inactive')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'inactive' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          className={`px-5 py-2.5 rounded-lg font-bold uppercase tracking-wide text-sm transition-all ${
+            filter === 'inactive' ? 'bg-amber-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={{ fontFamily: 'Oswald, sans-serif' }}
         >
-          Out of Stock ({products.filter(p => p.inventory === 0).length})
+          Unavailable ({products.filter(p => p.inventory === 0).length})
         </button>
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         {loading ? (
-          <div className="p-12 text-center text-gray-500">Loading products...</div>
+          <div className="p-12 text-center text-gray-500" style={{ fontFamily: 'Montserrat, sans-serif' }}>Loading products...</div>
         ) : filteredProducts.length === 0 ? (
           <div className="p-12 text-center text-gray-500">No products found</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" style={{ fontFamily: 'Oswald, sans-serif' }}>Menu Item</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" style={{ fontFamily: 'Oswald, sans-serif' }}>Category</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" style={{ fontFamily: 'Oswald, sans-serif' }}>Price</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" style={{ fontFamily: 'Oswald, sans-serif' }}>Availability</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" style={{ fontFamily: 'Oswald, sans-serif' }}>Status</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider" style={{ fontFamily: 'Oswald, sans-serif' }}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
+                {filteredProducts.map((product) => {
+                  const getStockBadge = () => {
+                    if (product.inventory === 0) {
+                      return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase bg-red-100 text-red-700" style={{ fontFamily: 'Oswald, sans-serif' }}>Out of Stock</span>
+                    } else if (product.inventory < 10) {
+                      return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase bg-amber-100 text-amber-700" style={{ fontFamily: 'Oswald, sans-serif' }}>Low Stock</span>
+                    } else {
+                      return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase bg-green-100 text-green-700" style={{ fontFamily: 'Oswald, sans-serif' }}>In Stock</span>
+                    }
+                  }
+                  
+                  return (
+                  <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {product.images?.[0] && (
                           <Image
                             src={product.images[0]}
                             alt={product.name}
-                            width={48}
-                            height={48}
-                            className="rounded-lg object-cover"
+                            width={56}
+                            height={56}
+                            className="rounded-lg object-cover border border-gray-200"
                           />
                         )}
                         <div>
-                          <div className="font-medium text-gray-900">{product.name}</div>
-                          <div className="text-sm text-gray-500">{product.description?.substring(0, 60)}...</div>
+                          <div className="font-semibold text-gray-900 text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{product.name}</div>
+                          <div className="text-sm text-gray-500" style={{ fontFamily: 'Montserrat, sans-serif' }}>{product.description?.substring(0, 60)}...</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                         {product.category_id && categories[product.category_id] ? categories[product.category_id] : 'Unknown'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-900 font-medium">
-                      {formatINR(product.price_inr)}
-                    </td>
                     <td className="px-6 py-4">
-                      <span className={`font-semibold ${product.inventory > 10 ? 'text-green-600' : product.inventory > 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                        {product.inventory} {product.unit}
+                      <span className="text-gray-900 font-bold" style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '14px' }}>
+                        {formatINR(product.price_inr)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className={`font-bold text-sm ${
+                          product.inventory > 10 ? 'text-green-600' : product.inventory > 0 ? 'text-amber-600' : 'text-red-600'
+                        }`} style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                          {product.inventory} {product.unit}
+                        </span>
+                        {getStockBadge()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
                       {product.inventory > 0 ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase bg-green-100 text-green-700" style={{ fontFamily: 'Oswald, sans-serif' }}>
                           Active
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Out of Stock
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase bg-red-100 text-red-700" style={{ fontFamily: 'Oswald, sans-serif' }}>
+                          Inactive
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-2">
+                    <td className="px-6 py-4 text-right space-x-3">
                       <button
                         onClick={() => setEditingProduct(product)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-blue-600 hover:text-blue-800 font-bold uppercase text-xs" style={{ fontFamily: 'Oswald, sans-serif' }}
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(product.id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
+                        className="text-red-600 hover:text-red-800 font-bold uppercase text-xs" style={{ fontFamily: 'Oswald, sans-serif' }}
                       >
                         Delete
                       </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
