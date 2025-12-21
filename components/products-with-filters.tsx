@@ -1,5 +1,5 @@
 "use client"
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Product } from '@/lib/types'
 import ProductGrid from './product-grid'
 import ProductFilters from './product-filters'
@@ -24,6 +24,10 @@ export default function ProductsWithFilters({ products, categories }: Props) {
     sortBy: 'popular'
   })
 
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
+    setFilters(newFilters)
+  }, [])
+
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = [...products]
 
@@ -41,9 +45,9 @@ export default function ProductsWithFilters({ products, categories }: Props) {
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case 'price-asc':
-          return a.price_inr - b.price_inr
-        case 'price-desc':
           return b.price_inr - a.price_inr
+        case 'price-desc':
+          return a.price_inr - b.price_inr
         case 'rating':
           return b.rating - a.rating
         case 'newest':
@@ -66,7 +70,7 @@ export default function ProductsWithFilters({ products, categories }: Props) {
       <div className="lg:col-span-1">
         <ProductFilters
           filters={filters}
-          onFilterChange={setFilters}
+          onFilterChange={handleFilterChange}
           categories={categories}
         />
       </div>

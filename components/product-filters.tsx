@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -20,31 +20,31 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [expandedSections, setExpandedSections] = useState<string[]>(['price', 'category', 'rating', 'sort'])
 
-  const toggleSection = (section: string) => {
+  const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev =>
       prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
     )
-  }
+  }, [])
 
-  const updateFilter = (key: keyof FilterState, value: any) => {
+  const updateFilter = useCallback((key: keyof FilterState, value: any) => {
     onFilterChange({ ...filters, [key]: value })
-  }
+  }, [filters, onFilterChange])
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleCategory = useCallback((categoryId: string) => {
     const newCategories = filters.categories.includes(categoryId)
       ? filters.categories.filter(c => c !== categoryId)
       : [...filters.categories, categoryId]
     updateFilter('categories', newCategories)
-  }
+  }, [filters.categories, updateFilter])
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     onFilterChange({
       priceRange: [0, 10000],
       categories: [],
       rating: null,
       sortBy: 'popular'
     })
-  }
+  }, [onFilterChange])
 
   const activeFilterCount = 
     (filters.categories.length > 0 ? 1 : 0) +
@@ -87,7 +87,7 @@ export default function ProductFilters({ filters, onFilterChange, categories }: 
                     name="sort"
                     value={option.value}
                     checked={filters.sortBy === option.value}
-                    onChange={(e) => updateFilter('sortBy', e.target.value)}
+                    onChange={(e) => updateFilter('sortBy', e.target.value as FilterState['sortBy'])}
                     className="w-4 h-4 text-brand-600 focus:ring-brand-500"
                   />
                   <span className="text-sm font-medium text-neutral-700 group-hover:text-brand-600">

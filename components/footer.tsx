@@ -20,10 +20,10 @@ export default function Footer() {
               Premium meat and seafood delivered fresh at honest prices. Quality you can trust, delivered to your door.
             </p>
             <div className="flex items-center gap-3">
-              <a href="#" className="h-9 w-9 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-colors">
+              <a href="https://www.facebook.com/meatcountryofficial" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-colors">
                 <Facebook className="h-4 w-4" />
               </a>
-              <a href="#" className="h-9 w-9 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-colors">
+              <a href="https://www.instagram.com/meatcountryofficial/" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-colors">
                 <Instagram className="h-4 w-4" />
               </a>
               <a href="#" className="h-9 w-9 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-colors">
