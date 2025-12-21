@@ -7,6 +7,9 @@ import RecentlyViewedProducts from '@/components/recently-viewed'
 import PersonalizedRecommendations from '@/components/personalized-recommendations'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function HomePage() {
   const sb = supabaseServer()
   
