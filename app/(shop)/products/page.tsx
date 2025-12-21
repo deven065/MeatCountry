@@ -127,11 +127,13 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
   return (
     <div className="py-8 space-y-10">
       <section className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-brand-50 via-white to-accent-50">
-        <div className="absolute inset-0 opacity-70">
+        <div className="absolute inset-0">
           {category === 'chicken' ? (
             <Image src="/chicken.avif" alt="Chicken hero" fill className="object-cover" priority />
+          ) : sub === 'farm-chicken' || sub === 'farm_chicken' ? (
+            <Image src="/chicken.avif" alt="Farm Chicken hero" fill className="object-cover" priority />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-white/60" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/70 via-white/50 to-white/40" />
         </div>
         <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 p-8 md:p-10">
           <div className="space-y-4">
