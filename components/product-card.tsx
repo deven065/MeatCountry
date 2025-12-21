@@ -47,11 +47,24 @@ export default function ProductCard({ product }: { product: Product }) {
   const currentDiscount = selectedVariant?.discount_percentage || product.discount_percentage || 0
   const hasDiscount = currentDiscount > 0
   
+  // Check if all variants are out of stock
+  const totalStock = variants.reduce((sum, v) => sum + (v.inventory || 0), 0)
+  const isOutOfStock = variants.length > 0 && totalStock === 0
+  
   return (
     <motion.div variants={fadeInUp}>
-      <div className="group bg-white rounded-xl border border-neutral-200 hover:border-brand-300 overflow-hidden transition-all duration-300 hover:shadow-hover">
+      <div className={`group bg-white rounded-xl border border-neutral-200 hover:border-brand-300 overflow-hidden transition-all duration-300 hover:shadow-hover ${
+        isOutOfStock ? 'opacity-60 grayscale' : ''
+      }`}>
         <Link href={`/products/${product.slug}`} className="block relative">
           <div className="relative aspect-[4/3] overflow-hidden bg-neutral-50">
+            {isOutOfStock && (
+              <div className="absolute inset-0 bg-black/40 z-20 flex items-center justify-center">
+                <div className="bg-red-600 text-white font-bold px-6 py-3 rounded-lg shadow-lg transform rotate-[-5deg]">
+                  <span className="text-lg uppercase tracking-wider">Out of Stock</span>
+                </div>
+              </div>
+            )}
             <img 
               src={img} 
               alt={product.name} 
