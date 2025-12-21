@@ -8,7 +8,7 @@ import ProductReviews from '@/components/product-reviews'
 import ProductViewTracker from '@/components/product-view-tracker'
 import PersonalizedRecommendations from '@/components/personalized-recommendations'
 import { useEffect, useState, use } from 'react'
-import { Tag } from 'lucide-react'
+import { Tag, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const unwrappedParams = use(params)
@@ -17,6 +17,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [variants, setVariants] = useState<any[]>([])
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
 
   useEffect(() => {
     const loadData = async () => {
@@ -53,12 +56,44 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   if (loading || !product) return <div className="py-20 text-center">Loading...</div>
 
-  const img = product.images?.[0] || '/chicken.png'
+  const images = product.images && product.images.length > 0 ? product.images : ['/chicken.png']
+  const img = images[currentImageIndex]
   const currentPrice = selectedVariant?.price_inr || product.price_inr
   const currentOriginalPrice = selectedVariant?.original_price || product.original_price
   const currentUnit = selectedVariant?.unit || product.unit
   const currentDiscount = selectedVariant?.discount_percentage || product.discount_percentage || 0
   const hasDiscount = currentDiscount > 0
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
+  }
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
+  }
+
+  const handleThumbnailClick = (index: number) => {
+    setCurrentImageIndex(index)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 50) {
+      // Swipe left - next image
+      handleNextImage()
+    }
+    if (touchStart - touchEnd < -50) {
+      // Swipe right - previous image
+      handlePrevImage()
+    }
+  }
 
   return (
     <div className="space-y-12">
@@ -66,10 +101,59 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       
       <div className="py-10 grid grid-cols-1 md:grid-cols-2 gap-8">
         <div>
-          <img src={img} alt={product.name} className="w-full rounded-lg object-cover aspect-[4/3] bg-neutral-100" />
+          {/* Main Image with Navigation */}
+          <div 
+            className="relative group"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <img 
+              src={img} 
+              alt={product.name} 
+              className="w-full rounded-lg object-cover aspect-[4/3] bg-neutral-100" 
+            />
+            
+            {/* Navigation Buttons for Desktop */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-neutral-800 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-neutral-800 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+                
+                {/* Image Counter */}
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                  {currentImageIndex + 1} / {images.length}
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Thumbnail Strip */}
           <div className="mt-3 flex gap-2 overflow-x-auto">
-            {(product.images || []).map((src, i) => (
-              <img key={i} src={src} alt="thumb" className="h-16 w-16 rounded object-cover bg-neutral-100" />
+            {images.map((src, i) => (
+              <button
+                key={i}
+                onClick={() => handleThumbnailClick(i)}
+                className={`h-16 w-16 rounded object-cover bg-neutral-100 flex-shrink-0 border-2 transition-all ${
+                  i === currentImageIndex 
+                    ? 'border-brand-600 ring-2 ring-brand-200' 
+                    : 'border-transparent hover:border-brand-300'
+                }`}
+              >
+                <img src={src} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover rounded" />
+              </button>
             ))}
           </div>
         </div>

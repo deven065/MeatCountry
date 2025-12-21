@@ -20,46 +20,30 @@ export default function PersonalizedRecommendations({ allProducts, currentProduc
   }, [allProducts, currentProductId])
 
   const generateRecommendations = () => {
-    const recentProducts = getRecentProducts(5)
+    // Get today's date as seed for consistent daily recommendations
+    const today = new Date()
+    const dateString = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
+    const seed = dateString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
     
-    // Get categories from recently viewed products
-    const recentCategories = recentProducts
-      .map(p => allProducts.find(ap => ap.id === p.id))
-      .filter(Boolean)
-      .map(p => p!.category_id)
-    
-    // Find products from same categories
-    let recommended = allProducts.filter(p => {
-      // Exclude current product
-      if (currentProductId && p.id === currentProductId) return false
-      
-      // Include if same category as recently viewed
-      if (recentCategories.includes(p.category_id)) return true
-      
-      // Include featured products
-      if (p.is_featured) return true
-      
-      // Include highly rated products
-      if (p.rating >= 4.5) return true
-      
-      return false
-    })
-
-    // Sort by rating and limit
-    recommended.sort((a, b) => b.rating - a.rating)
-    recommended = recommended.slice(0, 8)
-    
-    // If not enough recommendations, add random products
-    if (recommended.length < 4) {
-      const additional = allProducts
-        .filter(p => !recommended.some(r => r.id === p.id) && p.id !== currentProductId)
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 8 - recommended.length)
-      
-      recommended = [...recommended, ...additional]
+    // Seeded random function for consistent daily results
+    const seededRandom = (index: number) => {
+      const x = Math.sin(seed + index) * 10000
+      return x - Math.floor(x)
     }
     
-    setRecommendations(recommended)
+    // Filter out current product
+    let availableProducts = allProducts.filter(p => 
+      (!currentProductId || p.id !== currentProductId)
+    )
+    
+    // Shuffle products based on daily seed
+    const shuffled = availableProducts
+      .map((product, index) => ({ product, sort: seededRandom(index) }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(item => item.product)
+    
+    // Take first 4 products
+    setRecommendations(shuffled.slice(0, 4))
   }
 
   if (recommendations.length === 0) return null
@@ -74,7 +58,7 @@ export default function PersonalizedRecommendations({ allProducts, currentProduc
           </h2>
         </div>
         <p className="text-neutral-600 mb-8">
-          Based on your browsing history and preferences
+          Fresh picks rotating daily - discover something new every day!
         </p>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">

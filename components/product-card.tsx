@@ -88,14 +88,6 @@ export default function ProductCard({ product }: { product: Product }) {
               </div>
             )}
             <div className="absolute top-2 right-2 flex flex-col gap-2">
-              <WishlistButton
-                productId={product.id}
-                productName={product.name}
-                productImage={img}
-                price={currentPrice}
-                unit={currentUnit}
-                slug={product.slug}
-              />
               <CompareButton
                 product={product}
                 image={img}

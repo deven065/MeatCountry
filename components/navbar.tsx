@@ -226,10 +226,6 @@ export default function Navbar() {
               Categories
             </button>
 
-            <Link href="/wishlist" className="hidden md:inline-flex items-center gap-2 hover:text-brand-600 transition-colors text-sm font-medium" title="Wishlist">
-              <Heart className="h-5 w-5" />
-            </Link>
-
             <Link href="/cart" className="relative inline-flex items-center gap-2 hover:text-brand-600 transition-colors">
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
@@ -377,6 +373,8 @@ export default function Navbar() {
                           <Link
                             href={`/products?category=${activeCategory}&sub=${sub.name.toLowerCase().replace(/\s+/g, '-')}`}
                             onClick={() => setShowCategories(false)}
+                            prefetch={false}
+                            scroll={true}
                             className="inline-flex items-center gap-2 text-lg font-bold text-neutral-800 hover:text-brand-600 transition-colors group"
                           >
                             <span>{sub.name}</span>

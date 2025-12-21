@@ -33,7 +33,7 @@ export default function CategoryGrid() {
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
             >
-              <Link href={`/products?category=${cat.slug}`}>
+              <Link href={`/products?category=${cat.slug}`} prefetch={false} scroll={true}>
                 <div className="group relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br hover:scale-105 transition-transform duration-300 cursor-pointer shadow-card hover:shadow-hover">
                   {cat.image ? (
                     <>

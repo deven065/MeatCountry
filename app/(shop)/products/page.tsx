@@ -5,6 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata = { title: 'Products — MeatCountry' }
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 const subCategories = [
   { label: 'All', value: 'all' },
@@ -31,9 +33,13 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
   const { data: categoriesData } = await sb.from('categories').select('*')
   const categories = (categoriesData ?? []) as Category[]
 
+  const { data: subcategoriesData } = await sb.from('subcategories').select('*')
+  const subcategories = (subcategoriesData ?? []) as Array<{ id: string; name: string; slug: string; category_id: string }>
+
   console.log('All products:', products.length, products.map(p => ({ name: p.name, category_id: p.category_id, price: p.price_inr, images: p.images })))
   console.log('All categories:', categories.map(c => ({ id: c.id, name: c.name, slug: c.slug })))
   console.log('Category parameter:', category)
+  console.log('Products without category_id:', products.filter(p => !p.category_id).map(p => p.name))
 
   // Apply search filter
   const searchQuery = Array.isArray(searchParams.search) ? searchParams.search[0] : searchParams.search
@@ -56,10 +62,11 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
     console.log('Is UUID?', isUUID)
     
     if (isUUID) {
-      // Direct ID match
+      // Direct ID match - only include products with matching category_id
       const beforeFilter = products.length
-      products = products.filter((p) => p.category_id === category)
+      products = products.filter((p) => p.category_id && p.category_id === category)
       console.log('Filtered by category ID:', category, 'Before:', beforeFilter, 'After:', products.length)
+      console.log('Filtered products:', products.map(p => ({ name: p.name, category_id: p.category_id })))
       selectedCategory = categories.find(c => c.id === category)
     } else {
       // Match by slug or name
@@ -71,7 +78,7 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
       console.log('Matching category:', matchingCategory)
       
       if (matchingCategory) {
-        products = products.filter((p) => p.category_id === matchingCategory.id)
+        products = products.filter((p) => p.category_id && p.category_id === matchingCategory.id)
         selectedCategory = matchingCategory
       } else {
         // Fallback to name/slug matching in product
@@ -84,20 +91,28 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
 
   console.log('Final filtered products:', products.length)
 
-  // Subcategory filter - make it more lenient, only filter if products actually match
+  // Subcategory filter - use subcategory_id for accurate filtering
   if (sub && sub !== 'all') {
-    const subFiltered = products.filter((p) => {
-      const slugMatch = p.slug.toLowerCase().includes(sub.toLowerCase())
-      const nameMatch = p.name.toLowerCase().includes(sub.toLowerCase())
-      // Also check if slug starts with first word of sub (e.g., "kadaknath" matches "kadaknath-chicken")
-      const firstWord = sub.split('-')[0]
-      const firstWordMatch = p.slug.toLowerCase().includes(firstWord) || p.name.toLowerCase().includes(firstWord)
-      return slugMatch || nameMatch || firstWordMatch
-    })
+    // Find matching subcategory by slug
+    const matchingSubcategory = subcategories.find(s => 
+      s.slug.toLowerCase() === sub.toLowerCase() ||
+      s.slug.toLowerCase().replace(/-/g, '_') === sub.toLowerCase() ||
+      s.slug.toLowerCase().replace(/_/g, '-') === sub.toLowerCase()
+    )
     
-    // Only apply subcategory filter if it matches something, otherwise show all category products
-    if (subFiltered.length > 0) {
-      products = subFiltered
+    console.log('Subcategory filter:', sub, 'Found:', matchingSubcategory)
+    
+    if (matchingSubcategory) {
+      // Filter by subcategory_id
+      products = products.filter((p) => p.subcategory_id === matchingSubcategory.id)
+      console.log('Filtered by subcategory_id:', matchingSubcategory.id, 'Products:', products.length)
+    } else {
+      // Fallback to name/slug matching if no subcategory found
+      products = products.filter((p) => {
+        const slugMatch = p.slug.toLowerCase().includes(sub.toLowerCase())
+        const nameMatch = p.name.toLowerCase().includes(sub.toLowerCase())
+        return slugMatch || nameMatch
+      })
     }
   }
 
@@ -156,6 +171,8 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
                 <Link
                   key={item.value}
                   href={href}
+                  scroll={true}
+                  prefetch={false}
                   className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${active ? 'bg-brand-600 text-white border-brand-600 shadow-soft' : 'bg-white text-neutral-700 hover:border-brand-200'}`}
                 >
                   {item.label}
@@ -174,7 +191,7 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
           <div className="inline-flex items-center gap-2 rounded-full bg-white border px-3 py-2 shadow-soft">No antibiotic residue</div>
         </div>
 
-        <ProductsWithFilters products={products} categories={categories} />
+        <ProductsWithFilters key={`${category}-${sub}-${products.length}`} products={products} categories={categories} />
       </section>
     </div>
   )

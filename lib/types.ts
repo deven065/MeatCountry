@@ -30,6 +30,7 @@ export type Product = {
   is_featured: boolean
   rating: number
   category_id: string
+  subcategory_id?: string
   variants?: ProductVariant[]
 }
 
