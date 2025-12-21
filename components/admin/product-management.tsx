@@ -52,22 +52,25 @@ export function ProductManagement() {
       console.log('Products loaded:', data.length)
       console.log('First product category_id:', data[0]?.category_id)
       
-      // Load variants for each product to get accurate stock
+      // Load variants for each product to get accurate stock and price
       const productsWithStock = await Promise.all(
         data.map(async (product) => {
           const { data: variants } = await sb
             .from('product_variants')
-            .select('inventory, unit')
+            .select('inventory, unit, price_inr')
             .eq('product_id', product.id)
+            .order('sort_order', { ascending: true })
           
           // Calculate total stock from variants
           const totalStock = variants?.reduce((sum, v) => sum + (v.inventory || 0), 0) || 0
           const primaryUnit = variants?.[0]?.unit || product.unit
+          const primaryPrice = variants?.[0]?.price_inr || product.price_inr
           
           return {
             ...product,
             inventory: totalStock,
-            unit: primaryUnit
+            unit: primaryUnit,
+            price_inr: primaryPrice
           }
         })
       )
