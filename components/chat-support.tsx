@@ -1,8 +1,16 @@
 "use client"
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Script from 'next/script'
+import useCompare from './store/compare'
 
 export default function ChatSupport() {
+  const { products } = useCompare()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
   useEffect(() => {
     // Initialize Tawk.to chat widget
     // Replace with your Tawk.to property ID
@@ -21,6 +29,10 @@ export default function ChatSupport() {
       }
     })()
   }, [])
+  
+  // Adjust bottom position when compare bar is visible
+  const hasCompareItems = mounted && products.length > 0
+  const bottomClass = hasCompareItems ? 'bottom-32' : 'bottom-6'
 
   return (
     <>
@@ -28,7 +40,7 @@ export default function ChatSupport() {
       {/* Replace the src URL with your actual Tawk.to embed code */}
       
       {/* Alternative: Custom Chat Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className={`fixed ${bottomClass} right-6 z-50 transition-all duration-300`}>
         <button
           onClick={() => {
             // Open chat widget

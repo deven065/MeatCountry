@@ -51,8 +51,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const isOutOfStock = variants.length > 0 && totalStock === 0
   
   return (
-    <motion.div variants={fadeInUp}>
-      <div className={`group bg-white rounded-xl border border-neutral-200 hover:border-brand-300 overflow-hidden transition-all duration-300 hover:shadow-hover ${
+    <motion.div variants={fadeInUp} className="h-full">
+      <div className={`group bg-white rounded-xl border border-neutral-200 hover:border-brand-300 overflow-hidden transition-all duration-300 hover:shadow-hover h-full flex flex-col ${
         isOutOfStock ? 'opacity-60 grayscale' : ''
       }`}>
         <Link href={`/products/${product.slug}`} className="block relative">
@@ -95,9 +95,9 @@ export default function ProductCard({ product }: { product: Product }) {
             <QuickViewButton product={product} />
           </div>
         </Link>
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2 flex-1 flex flex-col">
           <Link href={`/products/${product.slug}`}>
-            <h3 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-brand-600 transition-colors">
+            <h3 className="font-semibold text-sm leading-tight line-clamp-2 h-10 group-hover:text-brand-600 transition-colors">
               {product.name}
             </h3>
           </Link>
@@ -108,7 +108,7 @@ export default function ProductCard({ product }: { product: Product }) {
           
           {/* Variant Selection - Show as buttons for better UX */}
           {variants.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1 min-h-[60px]">
               <p className="text-xs font-medium text-gray-700">Select Units:</p>
               <div className="flex flex-wrap gap-1.5">
                 {variants.map(v => (
@@ -132,6 +132,7 @@ export default function ProductCard({ product }: { product: Product }) {
             </div>
           )}
           
+          <div className="mt-auto space-y-2">
           <div className="flex items-baseline gap-2">
             <Price value={currentPrice} />
             {currentOriginalPrice && currentOriginalPrice > currentPrice && (
@@ -153,6 +154,7 @@ export default function ProductCard({ product }: { product: Product }) {
             slug={product.slug}
             variant_id={selectedVariant?.id}
           />
+          </div>
         </div>
       </div>
     </motion.div>

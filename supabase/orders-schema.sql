@@ -22,7 +22,8 @@ CREATE TABLE orders (
   -- Order status
   status TEXT NOT NULL DEFAULT 'new', -- new, cutting, ready, out_for_delivery, delivered, cancelled
   payment_status TEXT DEFAULT 'pending', -- pending, paid, failed, refunded
-  payment_method TEXT, -- cod, online, card
+  payment_method TEXT, -- cod, online, card, razorpay
+  payment_id TEXT, -- Razorpay payment ID or transaction reference
   
   -- Delivery details
   delivery_date DATE,
