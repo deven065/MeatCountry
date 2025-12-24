@@ -1,10 +1,20 @@
 import Razorpay from 'razorpay'
 
-// Initialize Razorpay instance (server-side only)
-export const razorpayInstance = new Razorpay({
-  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-})
+// Lazy initialization to avoid build-time errors
+let razorpayInstanceCache: Razorpay | null = null
+
+export const getRazorpayInstance = (): Razorpay => {
+  if (!razorpayInstanceCache) {
+    if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error('Razorpay credentials are not configured')
+    }
+    razorpayInstanceCache = new Razorpay({
+      key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    })
+  }
+  return razorpayInstanceCache
+}
 
 // Razorpay types
 export interface RazorpayOrderOptions {

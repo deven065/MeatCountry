@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { razorpayInstance, toRazorpayAmount } from '@/lib/razorpay'
+import { getRazorpayInstance, toRazorpayAmount } from '@/lib/razorpay'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       notes: notes || {},
     }
 
-    const order = await razorpayInstance.orders.create(options)
+    const razorpay = getRazorpayInstance()
+    const order = await razorpay.orders.create(options)
 
     return NextResponse.json({
       success: true,

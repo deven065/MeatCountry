@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { getUserLocation } from '@/lib/location'
 import { useRouter } from 'next/navigation'
+import AuthModal from '@/components/auth-modal'
 
 interface Subcategory {
   id: string
@@ -38,6 +39,7 @@ export default function Navbar() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const router = useRouter()
 
   const indianCities = [
@@ -356,10 +358,13 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <Link href="/sign-in" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium transition-colors">
+              <button 
+                onClick={() => setShowAuthModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium transition-colors"
+              >
                 <LogIn className="h-4 w-4" />
                 <span className="hidden md:inline">Sign in</span>
-              </Link>
+              </button>
             )}
             <button 
               className="md:hidden"
@@ -574,6 +579,13 @@ export default function Navbar() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+        initialMode="sign-in"
+      />
     </>
   )
 }
