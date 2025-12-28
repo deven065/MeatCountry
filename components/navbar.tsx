@@ -9,6 +9,7 @@ import Image from 'next/image'
 import { getUserLocation } from '@/lib/location'
 import { useRouter } from 'next/navigation'
 import AuthModal from '@/components/auth-modal'
+import ProfileDropdown from '@/components/profile-dropdown'
 
 interface Subcategory {
   id: string
@@ -344,19 +345,12 @@ export default function Navbar() {
               )}
             </Link>
             {authed ? (
-              <div className="flex items-center gap-2">
-                <Link href={"/profile" as any} className="inline-flex items-center gap-2 text-sm font-medium hover:text-brand-600 transition-colors">
-                  <User className="h-4 w-4" />
-                  <span className="hidden md:inline">Profile</span>
-                </Link>
-                <button
-                  onClick={async () => { await supabaseClient().auth.signOut(); setAuthed(false) }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden md:inline">Sign out</span>
-                </button>
-              </div>
+              <ProfileDropdown 
+                onLogout={async () => {
+                  await supabaseClient().auth.signOut()
+                  setAuthed(false)
+                }}
+              />
             ) : (
               <button 
                 onClick={() => setShowAuthModal(true)}
