@@ -30,9 +30,9 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
       if (authUser) {
         // Fetch additional user profile info from profiles table if exists
         const { data: profileData } = await sb
-          .from('profiles')
-          .select('full_name, role')
-          .eq('id', authUser.id)
+          .from('user_profiles')
+          .select('full_name')
+          .eq('user_id', authUser.id)
           .single()
         
         setUser({

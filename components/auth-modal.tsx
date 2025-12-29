@@ -55,9 +55,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'sign-in' }: 
     
     if (user) {
       const { data: profileData } = await sb
-        .from('profiles')
-        .select('full_name, phone, role')
-        .eq('id', userId)
+        .from('user_profiles')
+        .select('full_name, phone')
+        .eq('user_id', userId)
         .single()
       
       setUserProfile({
@@ -145,9 +145,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'sign-in' }: 
       // Update profile
       if (data.user) {
         await supabaseClient()
-          .from('profiles')
+          .from('user_profiles')
           .upsert({
-            id: data.user.id,
+            user_id: data.user.id,
             full_name: fullName || email.split('@')[0],
             updated_at: new Date().toISOString()
           })
@@ -257,9 +257,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'sign-in' }: 
         // Update profile
         if (signUpData.user) {
           await supabaseClient()
-            .from('profiles')
+            .from('user_profiles')
             .upsert({
-              id: signUpData.user.id,
+              user_id: signUpData.user.id,
               full_name: fullName || 'User',
               phone: phone,
               updated_at: new Date().toISOString()
