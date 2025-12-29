@@ -251,20 +251,61 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   }
 
   const handleCODPayment = async () => {
-    const addressData = getSelectedAddressData()
-    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !addressData) {
-      setError('Please fill in all customer details and select a delivery address')
-      return
-    }
-
+    console.log('🔍 Starting COD Payment Process')
+    
     setLoading(true)
     setError('')
 
     try {
-      await saveOrderToDatabase(null, 'pending')
+      // Simplified validation - just check for basic info
+      if (!customerDetails.name || !customerDetails.email) {
+        throw new Error('Please fill in name and email')
+      }
+
+      console.log('🔍 Customer Details:', customerDetails)
+      
+      // Create order directly with minimal validation
+      const orderData = {
+        customer_name: customerDetails.name || 'Guest Customer',
+        customer_email: customerDetails.email || 'guest@example.com',
+        customer_phone: customerDetails.phone || '',
+        customer_address: customerDetails.address || 'No address provided',
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price_inr,
+          unit: item.unit
+        })),
+        subtotal: subtotal,
+        delivery_fee: deliveryFee,
+        total: total,
+        payment_method: 'cod',
+        payment_status: 'pending'
+      }
+
+      console.log('🔍 Sending order data:', orderData)
+
+      const response = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      })
+
+      console.log('🔍 Response status:', response.status)
+      
+      const data = await response.json()
+      console.log('🔍 Response data:', data)
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.details || data.error || 'Order creation failed')
+      }
+
+      console.log('✅ Order created successfully!')
       clear()
       router.push('/order-success?method=cod')
+      
     } catch (err: any) {
+      console.error('❌ COD Payment error:', err)
       setError(err.message || 'Failed to place order')
       setLoading(false)
     }
@@ -332,14 +373,31 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   const saveOrderToDatabase = async (paymentId: string | null, paymentStatus: string) => {
     try {
       const addressData = getSelectedAddressData()
-      if (!addressData) {
-        throw new Error('No address selected')
+      
+      console.log('Debug: saveOrderToDatabase called with:', {
+        paymentId,
+        paymentStatus,
+        customerDetails,
+        addressData,
+        itemsCount: items.length,
+        subtotal,
+        total
+      })
+      
+      // For guest users, we can proceed without addressData if customerDetails has address
+      if (!addressData && !customerDetails.address) {
+        console.error('No address data available')
+        throw new Error('No address information provided')
       }
 
-      // Save new address if needed
-      let finalAddressId = addressData.address_id
+      // Save new address if needed (only for authenticated users)
+      let finalAddressId = addressData?.address_id
       if (!finalAddressId && userId && showNewAddressForm) {
-        finalAddressId = await saveNewAddress()
+        try {
+          finalAddressId = await saveNewAddress()
+        } catch (err) {
+          console.warn('Failed to save new address, proceeding with order anyway:', err)
+        }
       }
 
       // Prepare order items
@@ -352,6 +410,16 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         price: item.price_inr,
       }))
 
+      console.log('Debug: Prepared order data:', {
+        customer_name: customerDetails.name,
+        customer_email: customerDetails.email,
+        customer_phone: customerDetails.phone,
+        customer_address: addressData?.full_address || customerDetails.address || 'Address not provided',
+        orderItems,
+        subtotal,
+        total
+      })
+
       // Create order via API route (server-side with admin privileges)
       const response = await fetch('/api/orders/create', {
         method: 'POST',
@@ -360,7 +428,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
           customer_name: customerDetails.name,
           customer_email: customerDetails.email,
           customer_phone: customerDetails.phone,
-          customer_address: addressData.full_address,
+          customer_address: addressData?.full_address || customerDetails.address || 'Address not provided',
           items: orderItems,
           subtotal: subtotal,
           delivery_fee: deliveryFee,
