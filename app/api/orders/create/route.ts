@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
+      user_id,
+      address_id,
       customer_name,
       customer_email,
       customer_phone,
@@ -43,9 +45,12 @@ export async function POST(request: NextRequest) {
       payment_status,
       payment_method,
       payment_id,
+      notes,
     } = body
 
     console.log('Creating order with data:', {
+      user_id,
+      address_id,
       customer_name,
       customer_email,
       itemCount: items?.length,
@@ -55,63 +60,97 @@ export async function POST(request: NextRequest) {
     })
 
     // Validate required fields
-    if (!customer_name || !items || !subtotal || !total) {
+    if (!user_id || !items || !subtotal || !total) {
       console.error('Missing required fields:', {
-        hasName: !!customer_name,
+        hasUserId: !!user_id,
         hasItems: !!items,
         hasSubtotal: !!subtotal,
         hasTotal: !!total,
       })
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: user_id, items, subtotal, total' },
         { status: 400 }
       )
     }
 
+    // Generate unique order number
+    const order_number = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase()
+
     // Create order in database using admin client (bypasses RLS)
-    const { data, error } = await supabaseAdmin
+    const { data: orderData, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
-        customer_name,
-        customer_email,
-        customer_phone,
-        customer_address,
-        items,
-        subtotal,
-        delivery_fee: delivery_fee || 0,
-        total,
-        payment_status: payment_status || 'pending',
+        user_id,
+        address_id,
+        order_number,
+        status: 'pending',
         payment_method: payment_method || 'cod',
+        payment_status: payment_status || 'pending',
         payment_id,
-        status: 'new',
+        subtotal: Math.round(subtotal * 100), // Convert to paisa
+        delivery_fee: Math.round((delivery_fee || 0) * 100), // Convert to paisa
+        total: Math.round(total * 100), // Convert to paisa
+        notes,
       })
       .select()
       .single()
 
-    if (error) {
+    if (orderError) {
       console.error('Database error creating order:', {
-        error,
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
+        error: orderError,
+        code: orderError.code,
+        message: orderError.message,
+        details: orderError.details,
+        hint: orderError.hint,
       })
       return NextResponse.json(
         { 
           error: 'Failed to create order', 
-          details: error.message,
-          hint: error.hint,
-          code: error.code,
+          details: orderError.message,
+          hint: orderError.hint,
+          code: orderError.code,
         },
         { status: 500 }
       )
     }
 
-    console.log('Order created successfully:', data.id)
+    // Insert order items
+    const orderItems = items.map((item: any) => ({
+      order_id: orderData.id,
+      product_id: item.product_id || null,
+      product_name: item.name,
+      quantity: item.quantity,
+      unit_price: Math.round(item.price * 100), // Convert to paisa
+      total_price: Math.round(item.price * item.quantity * 100), // Convert to paisa
+      variant_name: item.variant || null,
+      weight: item.weight || null,
+    }))
+
+    const { error: itemsError } = await supabaseAdmin
+      .from('order_items')
+      .insert(orderItems)
+
+    if (itemsError) {
+      console.error('Database error creating order items:', itemsError)
+      // Delete the order if items insertion fails
+      await supabaseAdmin.from('orders').delete().eq('id', orderData.id)
+      return NextResponse.json(
+        { 
+          error: 'Failed to create order items', 
+          details: itemsError.message,
+        },
+        { status: 500 }
+      )
+    }
+
+    console.log('Order created successfully:', orderData.id)
 
     return NextResponse.json({
       success: true,
-      order: data,
+      order: {
+        ...orderData,
+        items: orderItems,
+      },
     })
   } catch (error: any) {
     console.error('Order creation error:', error)
