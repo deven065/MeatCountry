@@ -87,29 +87,62 @@ export default function ProfilePage() {
     if (!validateAddressForm()) return
     
     setSubmitting(true)
+    setFormErrors({}) // Clear previous errors
+    
     try {
       const { data: { user: authUser } } = await sb.auth.getUser()
-      if (!authUser) throw new Error('Not authenticated')
+      if (!authUser) throw new Error('Please sign in to save addresses')
 
-      // If setting as default, unset all other defaults first
-      if (formData.is_default) {
-        await sb.from('addresses').update({ is_default: false }).neq('id', '00000000-0000-0000-0000-000000000000')
-      }
-
-      const { error } = await sb.from('addresses').insert({
-        user_id: authUser.id,
-        ...formData,
-        address_line_2: formData.address_line_2 || null,
-        landmark: formData.landmark || null
+      // Use the API route for better error handling and RLS bypass
+      const response = await fetch('/api/create-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authUser.id,
+          addressData: {
+            full_name: formData.full_name,
+            phone: formData.phone,
+            address_line_1: formData.address_line_1,
+            address_line_2: formData.address_line_2 || null,
+            city: formData.city,
+            state: formData.state,
+            pincode: formData.pincode,
+            landmark: formData.landmark || null,
+            address_type: formData.address_type,
+            is_default: formData.is_default
+          }
+        })
       })
 
-      if (error) throw error
+      const result = await response.json()
 
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save address')
+      }
+
+      // Success - close modal and refresh data
       setShowAddressModal(false)
-      loadUserData()
+      setFormData({
+        full_name: '',
+        phone: '',
+        address_line_1: '',
+        address_line_2: '',
+        city: '',
+        state: '',
+        pincode: '',
+        landmark: '',
+        address_type: 'home',
+        is_default: false
+      })
+      
+      await loadUserData() // Reload addresses
+      
+      // Optional: Show success message
+      console.log('Address saved successfully!')
+      
     } catch (error: any) {
       console.error('Error adding address:', error)
-      setFormErrors({ submit: error.message || 'Failed to add address' })
+      setFormErrors({ submit: error.message || 'Failed to save address' })
     } finally {
       setSubmitting(false)
     }

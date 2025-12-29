@@ -15,7 +15,14 @@ export async function POST(request: Request) {
 
     // Create Supabase admin client (bypasses RLS)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    
+    if (!supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error: Missing service role key' },
+        { status: 500 }
+      )
+    }
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -23,6 +30,29 @@ export async function POST(request: Request) {
         persistSession: false
       }
     })
+
+    // Validate address data
+    const requiredFields = ['full_name', 'phone', 'address_line_1', 'city', 'state', 'pincode']
+    const missingFields = requiredFields.filter(field => !addressData[field])
+    
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // If setting as default, unset all other defaults first
+    if (addressData.is_default) {
+      const { error: updateError } = await supabase
+        .from('addresses')
+        .update({ is_default: false })
+        .eq('user_id', userId)
+        
+      if (updateError) {
+        console.error('Error unsetting default addresses:', updateError)
+      }
+    }
 
     // Insert address with admin privileges
     const { data, error } = await supabase
@@ -38,7 +68,7 @@ export async function POST(request: Request) {
         pincode: addressData.pincode,
         landmark: addressData.landmark || null,
         address_type: addressData.address_type || 'home',
-        is_default: addressData.is_default ?? true
+        is_default: addressData.is_default ?? false
       })
       .select()
 

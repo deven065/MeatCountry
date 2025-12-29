@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
+      user_id,
+      address_id,
       customer_name,
       customer_email,
       customer_phone,
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
       payment_status,
       payment_method,
       payment_id,
+      notes,
     } = body
 
     console.log('Creating order with data:', {
@@ -55,63 +58,67 @@ export async function POST(request: NextRequest) {
     })
 
     // Validate required fields
-    if (!customer_name || !items || !subtotal || !total) {
+    if (!items || !subtotal || !total) {
       console.error('Missing required fields:', {
-        hasName: !!customer_name,
         hasItems: !!items,
         hasSubtotal: !!subtotal,
         hasTotal: !!total,
       })
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: items, subtotal, total' },
         { status: 400 }
       )
     }
 
-    // Create order in database using admin client (bypasses RLS)
-    const { data, error } = await supabaseAdmin
+    // Generate unique order number
+    const order_number = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase()
+
+    // Create order using the actual table structure
+    const { data: orderData, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
-        customer_name,
-        customer_email,
-        customer_phone,
-        customer_address,
-        items,
-        subtotal,
-        delivery_fee: delivery_fee || 0,
-        total,
-        payment_status: payment_status || 'pending',
+        order_number,
+        customer_name: customer_name || 'Customer',
+        customer_email: customer_email || '',
+        customer_phone: customer_phone || '',
+        customer_address: customer_address || '',
+        items: JSON.stringify(items), // Store as JSON string
+        subtotal: Math.round(subtotal * 100), // Convert to paisa
+        delivery_fee: Math.round((delivery_fee || 0) * 100), // Convert to paisa
+        total: Math.round(total * 100), // Convert to paisa
         payment_method: payment_method || 'cod',
+        payment_status: payment_status || 'pending',
         payment_id,
         status: 'new',
+        notes,
       })
       .select()
       .single()
 
-    if (error) {
+    if (orderError) {
       console.error('Database error creating order:', {
-        error,
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
+        error: orderError,
+        code: orderError.code,
+        message: orderError.message,
+        details: orderError.details,
+        hint: orderError.hint,
       })
       return NextResponse.json(
         { 
           error: 'Failed to create order', 
-          details: error.message,
-          hint: error.hint,
-          code: error.code,
+          details: orderError.message,
+          hint: orderError.hint,
+          code: orderError.code,
         },
         { status: 500 }
       )
     }
 
-    console.log('Order created successfully:', data.id)
+    console.log('Order created successfully:', orderData.id)
 
     return NextResponse.json({
       success: true,
-      order: data,
+      order: orderData,
     })
   } catch (error: any) {
     console.error('Order creation error:', error)

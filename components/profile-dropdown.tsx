@@ -12,7 +12,6 @@ interface ProfileDropdownProps {
 interface UserProfile {
   email: string
   full_name?: string
-  role?: string
 }
 
 export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
@@ -30,15 +29,14 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
       if (authUser) {
         // Fetch additional user profile info from profiles table if exists
         const { data: profileData } = await sb
-          .from('profiles')
-          .select('full_name, role')
-          .eq('id', authUser.id)
+          .from('user_profiles')
+          .select('full_name')
+          .eq('user_id', authUser.id)
           .single()
         
         setUser({
           email: authUser.email || '',
-          full_name: profileData?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0],
-          role: profileData?.role || 'Customer'
+          full_name: profileData?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0]
         })
       }
       
@@ -147,11 +145,6 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
                   <p className="text-xs text-neutral-600 truncate">
                     {user.email}
                   </p>
-                  {user.role && (
-                    <span className="inline-block mt-1 px-2 py-0.5 bg-brand-100 text-brand-700 text-xs font-medium rounded-full">
-                      {user.role}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>

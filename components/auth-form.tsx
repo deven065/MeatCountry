@@ -21,6 +21,9 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const [error, setError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const [passwordStrength, setPasswordStrength] = useState<{ level: number; text: string; color: string }>({ level: 0, text: '', color: '' })
+  const [otpSent, setOtpSent] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
   const router = useRouter()
 
   const calculatePasswordStrength = (pwd: string): { level: number; text: string; color: string } => {
@@ -90,6 +93,61 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     }))
   }
 
+  const verifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setVerifyingOtp(true)
+    setError(null)
+    
+    const sb = supabaseClient()
+    try {
+      const { data, error } = await sb.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email'
+      })
+      
+      if (error) throw error
+      
+      // OTP verified successfully, now create address
+      if (data.user) {
+        try {
+          const addressResponse = await fetch('/api/create-address', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: data.user.id,
+              addressData: {
+                full_name: fullName,
+                phone: phone,
+                address_line_1: addressLine1,
+                address_line_2: addressLine2 || null,
+                city: city,
+                state: state,
+                pincode: pincode,
+                landmark: landmark || null,
+                address_type: 'home',
+                is_default: true
+              }
+            })
+          })
+
+          const addressResult = await addressResponse.json()
+          if (!addressResponse.ok) {
+            console.error('Address save error:', addressResult)
+          }
+        } catch (addressException: any) {
+          console.error('Address save exception:', addressException)
+        }
+      }
+      
+      router.replace('/')
+    } catch (err: any) {
+      setError(err.message || 'Invalid OTP. Please try again.')
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -124,8 +182,9 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           throw error
         }
         console.log('Sign in successful:', data)
+        router.replace('/')
       } else {
-        // Sign up the user
+        // Sign up the user with email OTP
         const { data, error } = await sb.auth.signUp({ 
           email, 
           password,
@@ -134,51 +193,17 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               full_name: fullName,
               phone: phone
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`
+            emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`
           }
         })
         if (error) throw error
         
-        // Create home address if user was created successfully
+        // Show OTP input screen
         if (data.user) {
-          try {
-            // Use API route to save address (works even without active session)
-            const addressResponse = await fetch('/api/create-address', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: data.user.id,
-                addressData: {
-                  full_name: fullName,
-                  phone: phone,
-                  address_line_1: addressLine1,
-                  address_line_2: addressLine2 || null,
-                  city: city,
-                  state: state,
-                  pincode: pincode,
-                  landmark: landmark || null,
-                  address_type: 'home',
-                  is_default: true
-                }
-              })
-            })
-
-            const addressResult = await addressResponse.json()
-            
-            if (!addressResponse.ok) {
-              console.error('Address save error:', addressResult)
-            } else {
-              console.log('Address saved successfully:', addressResult.data)
-            }
-          } catch (addressException: any) {
-            console.error('Address save exception:', addressException)
-          }
-
-          // Check if email confirmation is required
-          if (!data.session) {
-            router.push('/confirm-email')
-            return
-          }
+          setOtpSent(true)
+          setError(null)
+          setLoading(false)
+          return
         }
       }
       router.replace('/')
@@ -187,6 +212,57 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Show OTP verification form if OTP was sent
+  if (otpSent) {
+    return (
+      <motion.form onSubmit={verifyOtp} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-md space-y-4 p-6 rounded-lg border bg-white">
+        <h1 className="text-2xl font-bold">Verify Your Email</h1>
+        <p className="text-sm text-gray-600">We've sent a 6-digit OTP code to <strong>{email}</strong></p>
+        
+        {error && (
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+        
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Enter OTP Code</label>
+          <input 
+            value={otp} 
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            type="text" 
+            maxLength={6}
+            placeholder="000000"
+            required 
+            className="w-full rounded-md border px-3 py-2 text-center text-2xl tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+          <p className="text-xs text-gray-500">Enter the 6-digit code from your email</p>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={verifyingOtp || otp.length !== 6}
+          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {verifyingOtp ? 'Verifying...' : 'Verify OTP'}
+        </button>
+
+        <button 
+          type="button" 
+          onClick={() => {
+            setOtpSent(false)
+            setOtp('')
+            setError(null)
+          }}
+          className="w-full text-sm text-gray-600 hover:text-gray-800 py-2"
+        >
+          ← Back to sign up
+        </button>
+      </motion.form>
+    )
   }
 
   return (
@@ -216,7 +292,7 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               )}
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium">
                 <Phone className="h-4 w-4" /> Phone Number *
               </label>
               <input 
@@ -336,7 +412,7 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               </div>
               
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-medium">
                   <Building2 className="h-4 w-4" /> Landmark (Optional)
                 </label>
                 <input value={landmark} onChange={(e) => setLandmark(e.target.value)} type="text" placeholder="e.g., Near City Mall" className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
@@ -344,7 +420,7 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm font-medium">
                     <MapPin className="h-4 w-4" /> City *
                   </label>
                   <input 
