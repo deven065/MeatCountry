@@ -251,62 +251,96 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   }
 
   const handleCODPayment = async () => {
-    console.log('🔍 Starting COD Payment Process')
+    console.log('=== COD PAYMENT START ===')
+    console.log('Customer Details:', JSON.stringify(customerDetails, null, 2))
+    console.log('Items:', JSON.stringify(items, null, 2))
+    console.log('Totals:', { subtotal, deliveryFee, total })
     
     setLoading(true)
     setError('')
 
     try {
-      // Simplified validation - just check for basic info
-      if (!customerDetails.name || !customerDetails.email) {
-        throw new Error('Please fill in name and email')
+      // Basic validation
+      if (!customerDetails.name?.trim()) {
+        throw new Error('Please enter your name')
+      }
+      if (!customerDetails.email?.trim()) {
+        throw new Error('Please enter your email')
+      }
+      if (!items || items.length === 0) {
+        throw new Error('Your cart is empty')
       }
 
-      console.log('🔍 Customer Details:', customerDetails)
-      
-      // Create order directly with minimal validation
+      // Clean and prepare order data
       const orderData = {
-        customer_name: customerDetails.name || 'Guest Customer',
-        customer_email: customerDetails.email || 'guest@example.com',
-        customer_phone: customerDetails.phone || '',
-        customer_address: customerDetails.address || 'No address provided',
+        customer_name: customerDetails.name.trim(),
+        customer_email: customerDetails.email.trim(),
+        customer_phone: customerDetails.phone?.trim() || '',
+        customer_address: customerDetails.address?.trim() || 'Address not provided',
         items: items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price_inr,
-          unit: item.unit
+          name: String(item.name || 'Unknown Item'),
+          quantity: Number(item.quantity) || 1,
+          price: Number(item.price_inr) || 0,
+          unit: String(item.unit || 'piece')
         })),
-        subtotal: subtotal,
-        delivery_fee: deliveryFee,
-        total: total,
+        subtotal: Number(subtotal) || 0,
+        delivery_fee: Number(deliveryFee) || 0,
+        total: Number(total) || 0,
         payment_method: 'cod',
         payment_status: 'pending'
       }
 
-      console.log('🔍 Sending order data:', orderData)
+      console.log('=== SENDING ORDER DATA ===')
+      console.log(JSON.stringify(orderData, null, 2))
 
       const response = await fetch('/api/orders/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(orderData),
       })
 
-      console.log('🔍 Response status:', response.status)
-      
-      const data = await response.json()
-      console.log('🔍 Response data:', data)
+      console.log('=== API RESPONSE ===')
+      console.log('Status:', response.status)
+      console.log('Status Text:', response.statusText)
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.details || data.error || 'Order creation failed')
+      let responseData
+      try {
+        responseData = await response.json()
+        console.log('Response Data:', JSON.stringify(responseData, null, 2))
+      } catch (parseError) {
+        console.error('Failed to parse response JSON:', parseError)
+        const responseText = await response.text()
+        console.log('Raw response:', responseText)
+        throw new Error('Server returned invalid response')
       }
 
-      console.log('✅ Order created successfully!')
+      if (!response.ok) {
+        const errorMsg = responseData?.details || responseData?.error || responseData?.message || 'Order creation failed'
+        console.error('API Error:', errorMsg)
+        throw new Error(errorMsg)
+      }
+
+      if (!responseData?.success) {
+        const errorMsg = responseData?.details || responseData?.error || 'Order creation failed'
+        console.error('Order Creation Failed:', errorMsg)
+        throw new Error(errorMsg)
+      }
+
+      console.log('=== ORDER CREATED SUCCESSFULLY ===')
+      console.log('Order ID:', responseData.order?.id)
+      
+      // Clear cart and redirect
       clear()
       router.push('/order-success?method=cod')
       
     } catch (err: any) {
-      console.error('❌ COD Payment error:', err)
-      setError(err.message || 'Failed to place order')
+      console.error('=== ORDER CREATION ERROR ===')
+      console.error('Error message:', err.message)
+      console.error('Error stack:', err.stack)
+      setError(err.message || 'Failed to place order. Please try again.')
       setLoading(false)
     }
   }
