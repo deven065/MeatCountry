@@ -357,8 +357,10 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: userId,
-          address_id: finalAddressId,
+          customer_name: customerDetails.name,
+          customer_email: customerDetails.email,
+          customer_phone: customerDetails.phone,
+          customer_address: addressData.full_address,
           items: orderItems,
           subtotal: subtotal,
           delivery_fee: deliveryFee,
@@ -366,7 +368,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
           payment_status: paymentStatus,
           payment_method: paymentMethod,
           payment_id: paymentId,
-          notes: `Customer: ${customerDetails.name}, Phone: ${customerDetails.phone}, Address: ${addressData.full_address}`
+          notes: `Address ID: ${finalAddressId || 'new'}, User: ${userId || 'guest'}`
         }),
       })
 
