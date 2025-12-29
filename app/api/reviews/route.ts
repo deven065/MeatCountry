@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Product ID is required' }, { status: 400 })
   }
 
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   const { data: reviews, error } = await sb
     .from('reviews')
     .select('*')
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 // POST a new review
 export async function POST(req: NextRequest) {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   // Check if user is authenticated
   const { data: { user }, error: authError } = await sb.auth.getUser()
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
 
 // PUT (update) a review
 export async function PUT(req: NextRequest) {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   const { data: { user }, error: authError } = await sb.auth.getUser()
   if (authError || !user) {
@@ -167,7 +167,7 @@ export async function PUT(req: NextRequest) {
 
 // DELETE a review
 export async function DELETE(req: NextRequest) {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   const { data: { user }, error: authError } = await sb.auth.getUser()
   if (authError || !user) {

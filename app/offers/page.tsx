@@ -10,7 +10,7 @@ export const metadata = {
 }
 
 export default async function OffersPage() {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   const { data } = await sb.from('products').select('*').order('name')
   
   // Get featured products or all products for the offer

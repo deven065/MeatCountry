@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function HomePage() {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   // Fetch featured/bestseller products
   const { data: featuredData } = await sb
@@ -82,7 +82,7 @@ export default async function HomePage() {
             { name: 'Kebab & starters', image: '/chicken.avif?v=2', slug: 'kebab-starters' },
             { name: 'Mutton', image: '/Mutton.avif', slug: 'mutton' },
             { name: 'Liver & More', image: '/Mutton.avif', slug: 'liver' },
-            { name: 'Prawns & Crabs', image: '/Fish.avif', slug: 'prawns-crabs' },
+            { name: 'Prawns & Crabs', image: '/prawns-and-crabs.webp', slug: 'prawns-crabs' },
             { name: 'Eggs', image: '/Egg.avif', slug: 'eggs' },
             { name: 'Crispy Snacks & Wings', image: '/chicken%20wings.webp', slug: 'snacks' },
             { name: 'Cold Cuts', image: '/chicken.avif?v=2', slug: 'cold-cuts' },

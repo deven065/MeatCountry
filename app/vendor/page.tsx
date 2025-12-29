@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { VendorDashboard } from '@/components/vendor/vendor-dashboard'
 
 export default async function VendorPage() {
-  const supabase = supabaseServer()
+  const supabase = await supabaseServer()
   
   const { data: { user } } = await supabase.auth.getUser()
   

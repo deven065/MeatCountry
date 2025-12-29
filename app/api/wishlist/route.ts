@@ -3,7 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 
 // GET user's wishlist
 export async function GET(req: NextRequest) {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   const { data: { user }, error: authError } = await sb.auth.getUser()
   if (authError || !user) {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
 // POST add item to wishlist
 export async function POST(req: NextRequest) {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   const { data: { user }, error: authError } = await sb.auth.getUser()
   if (authError || !user) {
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE remove item from wishlist
 export async function DELETE(req: NextRequest) {
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   
   const { data: { user }, error: authError } = await sb.auth.getUser()
   if (authError || !user) {

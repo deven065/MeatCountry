@@ -26,7 +26,7 @@ export default async function ProductsPage(props: { searchParams?: Promise<Recor
   const category = categoryRaw.toLowerCase()
   const sub = (subRaw || 'all').toLowerCase()
 
-  const sb = supabaseServer()
+  const sb = await supabaseServer()
   const { data } = await sb.from('products').select('*').order('name')
   let products = (data ?? []) as Product[]
 
