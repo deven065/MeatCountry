@@ -15,7 +15,6 @@ interface UserProfile {
   email: string
   full_name?: string
   phone?: string
-  role?: string
 }
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'sign-in' }: AuthModalProps) {
@@ -63,8 +62,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'sign-in' }: 
       setUserProfile({
         email: user.email || '',
         full_name: profileData?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0],
-        phone: profileData?.phone,
-        role: profileData?.role || 'Customer'
+        phone: profileData?.phone
       })
     }
   }
