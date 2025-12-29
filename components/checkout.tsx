@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import useCart from '@/components/store/cart'
 import { useRouter } from 'next/navigation'
 import Price from '@/components/price'
-import { CreditCard, Wallet, DollarSign, AlertCircle } from 'lucide-react'
+import { CreditCard, Wallet, DollarSign, AlertCircle, MapPin, Plus } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
 
 declare global {
   interface Window {
@@ -11,13 +12,28 @@ declare global {
   }
 }
 
+interface Address {
+  id: string
+  full_name: string
+  phone: string
+  address_line_1: string
+  address_line_2?: string | null
+  city: string
+  state: string
+  pincode: string
+  landmark?: string | null
+  address_type: 'home' | 'work' | 'other'
+  is_default: boolean
+}
+
 interface CheckoutProps {
   userEmail?: string
   userName?: string
   userPhone?: string
+  userId?: string
 }
 
-export default function Checkout({ userEmail, userName, userPhone }: CheckoutProps) {
+export default function Checkout({ userEmail, userName, userPhone, userId }: CheckoutProps) {
   const { items, clear } = useCart()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -29,10 +45,74 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
     phone: userPhone || '',
     address: '',
   })
+  
+  // Address management states
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+  const [addressMode, setAddressMode] = useState<'saved' | 'new'>('saved')
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false)
+  const [newAddress, setNewAddress] = useState({
+    full_name: userName || '',
+    phone: userPhone || '',
+    address_line_1: '',
+    address_line_2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    landmark: '',
+    address_type: 'home' as 'home' | 'work' | 'other',
+    is_default: false
+  })
 
   const subtotal = items.reduce((a, b) => a + b.price_inr * b.quantity, 0)
   const deliveryFee = subtotal > 500 ? 0 : 40
   const total = subtotal + deliveryFee
+
+  // Initialize Supabase client
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  // Load saved addresses on component mount
+  useEffect(() => {
+    if (userId) {
+      loadUserAddresses()
+    } else {
+      setAddressMode('new')
+    }
+  }, [userId])
+
+  const loadUserAddresses = async () => {
+    if (!userId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', userId)
+        .order('is_default', { ascending: false })
+
+      if (error) {
+        console.error('Error loading addresses:', error)
+        setAddressMode('new')
+        return
+      }
+
+      if (data && data.length > 0) {
+        setAddresses(data)
+        // Auto-select default address or first address
+        const defaultAddress = data.find(addr => addr.is_default) || data[0]
+        setSelectedAddressId(defaultAddress.id)
+        setAddressMode('saved')
+      } else {
+        setAddressMode('new')
+      }
+    } catch (err) {
+      console.error('Failed to load addresses:', err)
+      setAddressMode('new')
+    }
+  }
 
   // Load Razorpay script
   useEffect(() => {
@@ -105,8 +185,9 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
   }
 
   const handleRazorpayPayment = async () => {
-    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !customerDetails.address) {
-      setError('Please fill in all customer details')
+    const addressData = getSelectedAddressData()
+    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !addressData) {
+      setError('Please fill in all customer details and select a delivery address')
       return
     }
 
@@ -170,8 +251,9 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
   }
 
   const handleCODPayment = async () => {
-    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !customerDetails.address) {
-      setError('Please fill in all customer details')
+    const addressData = getSelectedAddressData()
+    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !addressData) {
+      setError('Please fill in all customer details and select a delivery address')
       return
     }
 
@@ -188,12 +270,82 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
     }
   }
 
+  const getSelectedAddressData = () => {
+    if (addressMode === 'saved' && selectedAddressId) {
+      const address = addresses.find(a => a.id === selectedAddressId)
+      if (address) {
+        return {
+          address_id: address.id,
+          full_address: `${address.address_line_1}${address.address_line_2 ? ', ' + address.address_line_2 : ''}, ${address.landmark ? address.landmark + ', ' : ''}${address.city}, ${address.state} - ${address.pincode}`,
+          phone: address.phone,
+          name: address.full_name
+        }
+      }
+    } else if (addressMode === 'new') {
+      if (showNewAddressForm) {
+        if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+          return null
+        }
+        return {
+          address_id: null,
+          full_address: `${newAddress.address_line_1}${newAddress.address_line_2 ? ', ' + newAddress.address_line_2 : ''}, ${newAddress.landmark ? newAddress.landmark + ', ' : ''}${newAddress.city}, ${newAddress.state} - ${newAddress.pincode}`,
+          phone: newAddress.phone,
+          name: newAddress.full_name
+        }
+      } else {
+        return customerDetails.address ? {
+          address_id: null,
+          full_address: customerDetails.address,
+          phone: customerDetails.phone,
+          name: customerDetails.name
+        } : null
+      }
+    }
+    return null
+  }
+
+  const saveNewAddress = async () => {
+    if (!userId) return null
+
+    try {
+      const response = await fetch('/api/create-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userId,
+          addressData: newAddress
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save address')
+      }
+
+      return result.address.id
+    } catch (err) {
+      console.error('Error saving new address:', err)
+      return null
+    }
+  }
+
   const saveOrderToDatabase = async (paymentId: string | null, paymentStatus: string) => {
     try {
+      const addressData = getSelectedAddressData()
+      if (!addressData) {
+        throw new Error('No address selected')
+      }
+
+      // Save new address if needed
+      let finalAddressId = addressData.address_id
+      if (!finalAddressId && userId && showNewAddressForm) {
+        finalAddressId = await saveNewAddress()
+      }
+
       // Prepare order items
       const orderItems = items.map(item => ({
         product_id: item.id,
-        product_name: item.name,
+        name: item.name,
         variant_id: item.variant_id,
         unit: item.unit,
         quantity: item.quantity,
@@ -205,17 +357,16 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_name: customerDetails.name,
-          customer_email: customerDetails.email,
-          customer_phone: customerDetails.phone,
-          customer_address: customerDetails.address,
+          user_id: userId,
+          address_id: finalAddressId,
           items: orderItems,
           subtotal: subtotal,
           delivery_fee: deliveryFee,
           total: total,
           payment_status: paymentStatus,
-          payment_method: paymentMethod === 'razorpay' ? 'online' : 'cod',
+          payment_method: paymentMethod,
           payment_id: paymentId,
+          notes: `Customer: ${customerDetails.name}, Phone: ${customerDetails.phone}, Address: ${addressData.full_address}`
         }),
       })
 
@@ -225,7 +376,6 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
       } catch (parseError) {
         console.error('Failed to parse response:', parseError)
         console.error('Response status:', response.status)
-        console.error('Response text:', await response.text())
         throw new Error('Server returned invalid response')
       }
       
@@ -266,7 +416,7 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
     <div className="space-y-6">
       {/* Customer Details Form */}
       <div className="bg-white rounded-lg border p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Delivery Details</h2>
+        <h2 className="text-lg font-semibold">Customer Details</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -302,17 +452,263 @@ export default function Checkout({ userEmail, userName, userPhone }: CheckoutPro
             placeholder="your@email.com"
           />
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium mb-1">Delivery Address *</label>
-          <textarea
-            value={customerDetails.address}
-            onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
-            rows={3}
-            placeholder="Enter your complete delivery address"
-          />
+      </div>
+
+      {/* Delivery Address Section */}
+      <div className="bg-white rounded-lg border p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Delivery Address</h2>
+          {addresses.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAddressMode('saved')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  addressMode === 'saved'
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Saved Addresses
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddressMode('new')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  addressMode === 'new'
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                New Address
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Saved Addresses */}
+        {addressMode === 'saved' && addresses.length > 0 && (
+          <div className="space-y-3">
+            {addresses.map((address) => (
+              <label key={address.id} className="block">
+                <div className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  selectedAddressId === address.id
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="address"
+                      value={address.id}
+                      checked={selectedAddressId === address.id}
+                      onChange={() => setSelectedAddressId(address.id)}
+                      className="mt-1 h-4 w-4 text-brand-600"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{address.full_name}</span>
+                        <span className="text-sm text-gray-500">({address.phone})</span>
+                        {address.is_default && (
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                            Default
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full capitalize">
+                          {address.address_type}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {address.address_line_1}
+                        {address.address_line_2 && `, ${address.address_line_2}`}
+                        {address.landmark && `, ${address.landmark}`}
+                        <br />
+                        {address.city}, {address.state} - {address.pincode}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {/* New Address */}
+        {addressMode === 'new' && (
+          <div className="space-y-4">
+            {userId ? (
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewAddressForm(false)}
+                    className={`flex-1 p-3 border-2 rounded-lg transition-colors ${
+                      !showNewAddressForm
+                        ? 'border-brand-500 bg-brand-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <p className="font-medium">Quick Address</p>
+                      <p className="text-sm text-gray-500">Enter address as text</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewAddressForm(true)}
+                    className={`flex-1 p-3 border-2 rounded-lg transition-colors ${
+                      showNewAddressForm
+                        ? 'border-brand-500 bg-brand-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <p className="font-medium">Save for Future</p>
+                      <p className="text-sm text-gray-500">Detailed form to save address</p>
+                    </div>
+                  </button>
+                </div>
+
+                {!showNewAddressForm ? (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Delivery Address *</label>
+                    <textarea
+                      value={customerDetails.address}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      rows={3}
+                      placeholder="Enter your complete delivery address with city, state, and pincode"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <h3 className="font-medium text-gray-900">Add New Address</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Full Name *</label>
+                        <input
+                          type="text"
+                          value={newAddress.full_name}
+                          onChange={(e) => setNewAddress({ ...newAddress, full_name: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Enter full name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Phone Number *</label>
+                        <input
+                          type="tel"
+                          value={newAddress.phone}
+                          onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="10-digit mobile number"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium mb-1">Address Line 1 *</label>
+                        <input
+                          type="text"
+                          value={newAddress.address_line_1}
+                          onChange={(e) => setNewAddress({ ...newAddress, address_line_1: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="House/Flat no, Building, Street"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium mb-1">Address Line 2</label>
+                        <input
+                          type="text"
+                          value={newAddress.address_line_2}
+                          onChange={(e) => setNewAddress({ ...newAddress, address_line_2: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Area, Colony (Optional)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">City *</label>
+                        <input
+                          type="text"
+                          value={newAddress.city}
+                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Enter city"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">State *</label>
+                        <input
+                          type="text"
+                          value={newAddress.state}
+                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Enter state"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Pincode *</label>
+                        <input
+                          type="text"
+                          value={newAddress.pincode}
+                          onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="6-digit pincode"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Landmark</label>
+                        <input
+                          type="text"
+                          value={newAddress.landmark}
+                          onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Nearby landmark (Optional)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Address Type</label>
+                        <select
+                          value={newAddress.address_type}
+                          onChange={(e) => setNewAddress({ ...newAddress, address_type: e.target.value as 'home' | 'work' | 'other' })}
+                          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                          <option value="home">Home</option>
+                          <option value="work">Work</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="is_default"
+                        checked={newAddress.is_default}
+                        onChange={(e) => setNewAddress({ ...newAddress, is_default: e.target.checked })}
+                        className="h-4 w-4 text-brand-600"
+                      />
+                      <label htmlFor="is_default" className="text-sm text-gray-700">
+                        Set as default address
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-1">Delivery Address *</label>
+                <textarea
+                  value={customerDetails.address}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  rows={3}
+                  placeholder="Enter your complete delivery address with city, state, and pincode"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Sign in to save addresses for faster checkout in future orders.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Payment Method Selection */}
