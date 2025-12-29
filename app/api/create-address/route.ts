@@ -24,6 +24,14 @@ export async function POST(request: Request) {
       }
     })
 
+    // If setting as default, unset all other defaults first
+    if (addressData.is_default) {
+      await supabase
+        .from('addresses')
+        .update({ is_default: false })
+        .eq('user_id', userId)
+    }
+
     // Insert address with admin privileges
     const { data, error } = await supabase
       .from('addresses')
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
         pincode: addressData.pincode,
         landmark: addressData.landmark || null,
         address_type: addressData.address_type || 'home',
-        is_default: addressData.is_default ?? true
+        is_default: addressData.is_default ?? false
       })
       .select()
 
