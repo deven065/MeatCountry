@@ -120,10 +120,9 @@ export async function POST(request: NextRequest) {
       product_id: item.product_id || null,
       product_name: item.name,
       quantity: item.quantity,
-      unit_price: Math.round(item.price * 100), // Convert to paisa
-      total_price: Math.round(item.price * item.quantity * 100), // Convert to paisa
-      variant_name: item.variant || null,
-      weight: item.weight || null,
+      price: Math.round(item.price * 100), // Convert to paisa
+      subtotal: Math.round(item.price * item.quantity * 100), // Convert to paisa  
+      unit: item.unit || 'piece',
     }))
 
     const { error: itemsError } = await supabaseAdmin
