@@ -57,6 +57,10 @@ interface Order {
   loyalty_points_earned: number
   loyalty_points_used: number
   notes: string | null
+  customer_name?: string
+  customer_phone?: string
+  customer_email?: string
+  customer_address?: string
 }
 
 export function OrderManagement() {
@@ -225,7 +229,7 @@ export function OrderManagement() {
     const matchesPayment = paymentFilter === 'all' || order.payment_status === paymentFilter
     const matchesSearch = 
       order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_phone?.toLowerCase().includes(searchTerm.toLowerCase())
     

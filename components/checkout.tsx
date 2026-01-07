@@ -284,7 +284,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         items: items.map(item => ({
           product_id: item.id,
           product_name: item.name,
-          product_image: item.images?.[0] || null,
+          product_image: item.image || null,
           quantity: item.quantity,
           price: item.price_inr / 100, // Convert from paisa to rupees
           unit: item.unit
@@ -304,9 +304,6 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        },
-        body: JSON.stringify(orderData),
-      })
         },
         body: JSON.stringify(orderData),
       })

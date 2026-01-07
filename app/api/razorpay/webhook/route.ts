@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
-// Use service role key for server-side operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-)
+// Helper function to get Supabase admin client
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
+}
 
 /**
  * Razorpay Webhook Handler
@@ -100,7 +102,7 @@ async function handlePaymentCaptured(payment: any) {
   console.log('Payment captured:', payment.id)
   
   // Update order payment status
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('orders')
     .update({
       payment_status: 'paid',
@@ -123,7 +125,7 @@ async function handlePaymentAuthorized(payment: any) {
   // Payment is authorized but not yet captured
   // Useful for manual review before capture
   
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('orders')
     .update({
       payment_status: 'authorized',
@@ -140,7 +142,7 @@ async function handlePaymentAuthorized(payment: any) {
 async function handlePaymentFailed(payment: any) {
   console.log('Payment failed:', payment.id)
   
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('orders')
     .update({
       payment_status: 'failed',
@@ -161,7 +163,7 @@ async function handleOrderPaid(order: any) {
   console.log('Order paid:', order.id)
   
   // Find order by receipt ID (if you stored it)
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('orders')
     .update({
       payment_status: 'paid',
@@ -177,7 +179,7 @@ async function handleOrderPaid(order: any) {
 async function handleRefundCreated(refund: any) {
   console.log('Refund created:', refund.id)
   
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('orders')
     .update({
       payment_status: 'refunded',

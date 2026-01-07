@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "npm run build && next start",
+    "start:prod": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "postinstall": "tailwindcss -v >/NUL 2>&1 || exit 0",
@@ -16,7 +17,6 @@
     "@supabase/supabase-js": "^2.46.1",
     "autoprefixer": "^10.4.20",
     "clsx": "^2.1.1",
-    "crypto": "^1.0.1",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.560.0",
