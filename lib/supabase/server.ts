@@ -24,6 +24,15 @@ export async function supabaseServer() {
           }
         },
       },
+      // Disable caching for all queries
+      global: {
+        fetch: (url, init = {}) => {
+          return fetch(url, {
+            ...init,
+            cache: 'no-store',
+          })
+        },
+      },
     }
   )
 }

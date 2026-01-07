@@ -13,9 +13,10 @@ import { useState, useEffect } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
 
 export default function ProductCard({ product }: { product: Product }) {
-  const img = product.images?.[0] || '/chicken.png'
+  const img = product.images?.[0] || '/chicken.avif'
   const [variants, setVariants] = useState<any[]>([])
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
+  const [imageError, setImageError] = useState(false)
   
   // Load variants
   useEffect(() => {
@@ -65,8 +66,9 @@ export default function ProductCard({ product }: { product: Product }) {
               </div>
             )}
             <img 
-              src={img} 
-              alt={product.name} 
+              src={imageError ? '/chicken.avif' : img} 
+              alt={product.name}
+              onError={() => setImageError(true)}
               className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" 
             />
             {hasDiscount && (

@@ -252,40 +252,46 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
 
   const handleCODPayment = async () => {
     console.log('=== COD PAYMENT START ===')
-    console.log('Customer Details:', JSON.stringify(customerDetails, null, 2))
-    console.log('Items:', JSON.stringify(items, null, 2))
-    console.log('Totals:', { subtotal, deliveryFee, total })
     
     setLoading(true)
     setError('')
 
     try {
-      // Basic validation
-      if (!customerDetails.name?.trim()) {
-        throw new Error('Please enter your name')
+      // Get address data
+      let addressId: string | null = null
+      let addressData: Address | null = null
+      
+      if (addressMode === 'saved' && selectedAddressId) {
+        addressData = addresses.find(a => a.id === selectedAddressId) || null
+        addressId = selectedAddressId
       }
-      if (!customerDetails.email?.trim()) {
-        throw new Error('Please enter your email')
+
+      // Basic validation
+      if (!userId) {
+        throw new Error('Please sign in to place an order')
       }
       if (!items || items.length === 0) {
         throw new Error('Your cart is empty')
       }
+      if (addressMode === 'saved' && !addressId) {
+        throw new Error('Please select a delivery address')
+      }
 
-      // Clean and prepare order data
+      // Prepare order data with proper schema
       const orderData = {
-        customer_name: customerDetails.name.trim(),
-        customer_email: customerDetails.email.trim(),
-        customer_phone: customerDetails.phone?.trim() || '',
-        customer_address: customerDetails.address?.trim() || 'Address not provided',
+        user_id: userId,
+        address_id: addressId,
         items: items.map(item => ({
-          name: String(item.name || 'Unknown Item'),
-          quantity: Number(item.quantity) || 1,
-          price: Number(item.price_inr) || 0,
-          unit: String(item.unit || 'piece')
+          product_id: item.id,
+          product_name: item.name,
+          product_image: item.images?.[0] || null,
+          quantity: item.quantity,
+          price: item.price_inr / 100, // Convert from paisa to rupees
+          unit: item.unit
         })),
-        subtotal: Number(subtotal) || 0,
-        delivery_fee: Number(deliveryFee) || 0,
-        total: Number(total) || 0,
+        subtotal: subtotal / 100, // Convert to rupees
+        delivery_fee: deliveryFee / 100, // Convert to rupees
+        total: total / 100, // Convert to rupees
         payment_method: 'cod',
         payment_status: 'pending'
       }
@@ -298,6 +304,9 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
+        },
+        body: JSON.stringify(orderData),
+      })
         },
         body: JSON.stringify(orderData),
       })

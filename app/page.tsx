@@ -13,7 +13,7 @@ export const revalidate = 0
 export default async function HomePage() {
   const sb = await supabaseServer()
   
-  // Fetch featured/bestseller products
+  // Fetch featured/bestseller products with cache disabled
   const { data: featuredData } = await sb
     .from('products')
     .select('*')
@@ -21,6 +21,8 @@ export default async function HomePage() {
     .order('rating', { ascending: false })
     .limit(10)
   const featuredProducts = (featuredData ?? []) as Product[]
+  
+  console.log('Featured products loaded:', featuredProducts.length)
 
   // Fetch fish & seafood products
   const { data: seafoodData } = await sb

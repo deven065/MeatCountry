@@ -26,14 +26,24 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string | null
+  product_name: string
+  product_image: string | null
+  price: number
+  quantity: number
+  unit: string
+  subtotal: number
+}
+
 interface Order {
   id: string
+  user_id: string
+  address_id: string | null
   order_number: string
-  customer_name: string
-  customer_email: string
-  customer_phone: string
-  customer_address: string
-  items: any[]
+  items: OrderItem[]
   subtotal: number
   delivery_fee: number
   total: number
@@ -43,6 +53,10 @@ interface Order {
   payment_id: string | null
   created_at: string
   updated_at: string
+  wallet_amount_used: number
+  loyalty_points_earned: number
+  loyalty_points_used: number
+  notes: string | null
 }
 
 export function OrderManagement() {
@@ -60,13 +74,66 @@ export function OrderManagement() {
   const loadOrders = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabaseAdmin
+      
+      // Fetch orders with address data
+      const { data: ordersData, error: ordersError } = await supabaseAdmin
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          addresses (
+            full_name,
+            phone,
+            address_line_1,
+            address_line_2,
+            city,
+            state,
+            pincode,
+            landmark
+          )
+        `)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setOrders(data || [])
+      if (ordersError) throw ordersError
+      
+      // Fetch all order items for these orders
+      const orderIds = ordersData?.map(o => o.id) || []
+      let orderItemsMap: Record<string, any[]> = {}
+      
+      if (orderIds.length > 0) {
+        const { data: itemsData, error: itemsError } = await supabaseAdmin
+          .from('order_items')
+          .select('*')
+          .in('order_id', orderIds)
+        
+        if (!itemsError && itemsData) {
+          // Group items by order_id
+          itemsData.forEach(item => {
+            if (!orderItemsMap[item.order_id]) {
+              orderItemsMap[item.order_id] = []
+            }
+            orderItemsMap[item.order_id].push(item)
+          })
+        }
+      }
+      
+      // Merge items and format address into orders
+      const ordersWithItems = ordersData?.map(order => {
+        const address = order.addresses
+        const addressText = address 
+          ? `${address.full_name}, ${address.phone}\n${address.address_line_1}${address.address_line_2 ? ', ' + address.address_line_2 : ''}\n${address.city}, ${address.state} - ${address.pincode}${address.landmark ? '\nNear: ' + address.landmark : ''}`
+          : 'Address not available'
+        
+        return {
+          ...order,
+          customer_name: address?.full_name || 'Customer',
+          customer_phone: address?.phone || '',
+          customer_email: '', // Not stored in address
+          customer_address: addressText,
+          items: orderItemsMap[order.id] || []
+        }
+      }) || []
+      
+      setOrders(ordersWithItems as any)
     } catch (error) {
       console.error('Error loading orders:', error)
     } finally {
@@ -453,24 +520,30 @@ export function OrderManagement() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
                 <div className="space-y-3">
-                  {selectedOrder.items?.map((item: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{item.product_name}</p>
-                        <p className="text-sm text-gray-600">
-                          {item.unit} × {item.quantity}
-                        </p>
+                  {Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item: OrderItem, index: number) => (
+                      <div key={item.id || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{item.product_name}</p>
+                          <p className="text-sm text-gray-600">
+                            {item.unit} × {item.quantity}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">
+                            {formatINR(item.price * item.quantity)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {formatINR(item.price)} each
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">
-                          {formatINR(item.price * item.quantity)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {formatINR(item.price)} each
-                        </p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No items found for this order
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 

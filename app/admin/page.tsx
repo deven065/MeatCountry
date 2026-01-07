@@ -16,33 +16,66 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'categories' | 'orders'>('dashboard')
+  const [user, setUser] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Admin password - you can change this in .env.local
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123'
 
   useEffect(() => {
-    // Check if already authenticated
-    const auth = sessionStorage.getItem('admin_authenticated')
-    if (auth === 'true') {
-      setIsAuthenticated(true)
-    }
-    setLoading(false)
+    checkAdminStatus()
   }, [])
 
-  const handleLogin = (e: React.FormEvent) => {
+  const checkAdminStatus = async () => {
+    const sb = supabaseClient()
+    
+    // Check if user is logged in
+    const { data: { user } } = await sb.auth.getUser()
+    setUser(user)
+    
+    if (!user) {
+      setLoading(false)
+      return
+    }
+    
+    // Check if user is in admin_users table
+    const { data: adminData, error } = await sb
+      .from('admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single()
+    
+    if (adminData && !error) {
+      setIsAdmin(true)
+      setIsAuthenticated(true)
+    }
+    
+    setLoading(false)
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // For backward compatibility, still allow password-only access
+    // But recommend users to set up proper admin accounts
     if (password === ADMIN_PASSWORD) {
-      sessionStorage.setItem('admin_authenticated', 'true')
       setIsAuthenticated(true)
       setError('')
+      
+      // If user is logged in but not an admin, suggest setup
+      if (user && !isAdmin) {
+        if (confirm('You are not registered as an admin yet. Would you like to set up your admin account now?')) {
+          router.push('/admin/setup')
+          return
+        }
+      }
     } else {
       setError('Incorrect password')
     }
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem('admin_authenticated')
     setIsAuthenticated(false)
     setPassword('')
   }
@@ -98,6 +131,38 @@ export default function AdminPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Access</h1>
               <p className="text-gray-600">Enter your password to continue</p>
             </div>
+
+            {/* Show user status */}
+            {user ? (
+              <div className="mb-6">
+                <div className={`p-4 rounded-lg border ${isAdmin ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                  <p className="text-sm font-medium mb-1">
+                    {isAdmin ? '✅ Admin Account' : '⚠️ Customer Account'}
+                  </p>
+                  <p className="text-sm text-gray-600">{user.email}</p>
+                  {!isAdmin && (
+                    <button
+                      onClick={() => router.push('/admin/setup')}
+                      className="mt-3 text-sm text-red-600 hover:text-red-700 font-medium"
+                    >
+                      → Set up admin access
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Not signed in yet?{' '}
+                  <button 
+                    onClick={() => router.push('/sign-in')}
+                    className="font-medium underline hover:text-blue-900"
+                  >
+                    Sign in first
+                  </button>
+                </p>
+              </div>
+            )}
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>

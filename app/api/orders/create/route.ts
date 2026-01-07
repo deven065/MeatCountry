@@ -73,23 +73,20 @@ export async function POST(request: NextRequest) {
     // Generate unique order number
     const order_number = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase()
 
-    // Create order using the actual table structure
+    // Create order using normalized schema
     const { data: orderData, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
         order_number,
-        customer_name: customer_name || 'Customer',
-        customer_email: customer_email || '',
-        customer_phone: customer_phone || '',
-        customer_address: customer_address || '',
-        items: JSON.stringify(items), // Store as JSON string
+        user_id,
+        address_id,
         subtotal: Math.round(subtotal * 100), // Convert to paisa
         delivery_fee: Math.round((delivery_fee || 0) * 100), // Convert to paisa
         total: Math.round(total * 100), // Convert to paisa
         payment_method: payment_method || 'cod',
         payment_status: payment_status || 'pending',
         payment_id,
-        status: 'new',
+        status: 'pending',
         notes,
       })
       .select()
@@ -109,6 +106,35 @@ export async function POST(request: NextRequest) {
           details: orderError.message,
           hint: orderError.hint,
           code: orderError.code,
+        },
+        { status: 500 }
+      )
+    }
+
+    // Insert order items into order_items table
+    const orderItems = items.map((item: any) => ({
+      order_id: orderData.id,
+      product_id: item.product_id || null,
+      product_name: item.product_name || item.name,
+      product_image: item.product_image || item.image || null,
+      price: Math.round((item.price || 0) * 100), // Convert to paisa
+      quantity: item.quantity,
+      unit: item.unit || '500g',
+      subtotal: Math.round((item.price || 0) * item.quantity * 100), // Convert to paisa
+    }))
+
+    const { error: itemsError } = await supabaseAdmin
+      .from('order_items')
+      .insert(orderItems)
+
+    if (itemsError) {
+      console.error('Error inserting order items:', itemsError)
+      // Delete the order if items insertion fails
+      await supabaseAdmin.from('orders').delete().eq('id', orderData.id)
+      return NextResponse.json(
+        { 
+          error: 'Failed to create order items', 
+          details: itemsError.message,
         },
         { status: 500 }
       )

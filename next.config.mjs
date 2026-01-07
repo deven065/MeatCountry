@@ -9,13 +9,18 @@ const nextConfig = {
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
       { protocol: 'https', hostname: 'kvhhnrgoiaxwqbhxklfm.supabase.co' },
       { protocol: 'https', hostname: 'www.meatcountry.in' },
-      { protocol: 'https', hostname: 'kyzmybdosgscumnxersb.supabase.co' }
+      { protocol: 'https', hostname: 'kyzmybdosgscumnxersb.supabase.co' },
+      { protocol: 'https', hostname: '*.supabase.co' }
     ],
     localPatterns: [
       {
         pathname: '/**',
       },
     ],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: true, // This bypasses the IP check
   }
 }
 

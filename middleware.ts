@@ -35,12 +35,17 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Redirect to sign-in only for protected routes (not admin routes)
+  // Admin routes handle their own authentication
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/sign-in') &&
     !request.nextUrl.pathname.startsWith('/sign-up') &&
     !request.nextUrl.pathname.startsWith('/api') &&
-    request.nextUrl.pathname.startsWith('/admin')
+    !request.nextUrl.pathname.startsWith('/admin') &&
+    (request.nextUrl.pathname.startsWith('/profile') ||
+     request.nextUrl.pathname.startsWith('/cart') ||
+     request.nextUrl.pathname.startsWith('/wishlist'))
   ) {
     // no user, potentially respond by redirecting the user to the sign in page
     const url = request.nextUrl.clone()
