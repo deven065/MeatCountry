@@ -128,16 +128,26 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
 
   const createOrder = async () => {
     try {
+      // Convert from paise to rupees for the API (API will convert back to paise for Razorpay)
+      const amountInRupees = total / 100
+      
+      console.log('Creating Razorpay order:', {
+        amountInRupees,
+        amountInPaise: total,
+        customer: customerDetails.name
+      })
+      
       const response = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: total,
+          amount: amountInRupees,
           currency: 'INR',
           receipt: `order_${Date.now()}`,
           notes: {
             customer_name: customerDetails.name,
             customer_email: customerDetails.email,
+            customer_phone: customerDetails.phone,
           },
         }),
       })
@@ -145,9 +155,15 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create order')
+        console.error('Razorpay order creation failed:', data)
+        throw new Error(data.message || data.error || 'Failed to create order')
       }
 
+      if (!data.success || !data.order) {
+        throw new Error('Invalid response from payment gateway')
+      }
+
+      console.log('Razorpay order created successfully:', data.order.id)
       return data.order
     } catch (err: any) {
       console.error('Create order error:', err)
@@ -185,9 +201,23 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   }
 
   const handleRazorpayPayment = async () => {
+    console.log('=== RAZORPAY PAYMENT START ===')
+    
     const addressData = getSelectedAddressData()
     if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !addressData) {
       setError('Please fill in all customer details and select a delivery address')
+      return
+    }
+
+    // Check if Razorpay is loaded
+    if (!window.Razorpay) {
+      setError('Payment gateway not loaded. Please refresh the page and try again.')
+      return
+    }
+
+    // Check if Razorpay key is configured
+    if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+      setError('Payment gateway not configured. Please contact support.')
       return
     }
 
@@ -197,6 +227,12 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
     try {
       // Create Razorpay order
       const order = await createOrder()
+
+      console.log('Initializing Razorpay checkout with:', {
+        order_id: order.id,
+        amount: order.amount,
+        customer: customerDetails.name
+      })
 
       // Initialize Razorpay payment
       const options = {
@@ -215,6 +251,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
           color: '#DC2626', // brand-600 color
         },
         handler: async function (response: any) {
+          console.log('Payment successful, verifying...', response)
           try {
             // Verify payment
             await verifyPayment(
@@ -223,19 +260,25 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
               response.razorpay_signature
             )
 
-            // Save order to database
-            await saveOrderToDatabase(response.razorpay_payment_id, 'paid')
+            console.log('Payment verified, saving order to database...')
+            
+            // Save order to database with Razorpay details
+            const savedOrder = await saveOrderToDatabase(response.razorpay_payment_id, 'paid', 'razorpay')
 
+            console.log('Order saved successfully:', savedOrder?.id)
+            
             // Clear cart and redirect
             clear()
-            router.push(`/order-success?payment_id=${response.razorpay_payment_id}`)
+            router.push(`/order-success?payment_id=${response.razorpay_payment_id}&method=razorpay`)
           } catch (err: any) {
+            console.error('Payment handler error:', err)
             setError(err.message || 'Payment verification failed')
             setLoading(false)
           }
         },
         modal: {
           ondismiss: function () {
+            console.log('Payment modal dismissed')
             setLoading(false)
             setError('Payment cancelled by user')
           },
@@ -245,6 +288,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
       const razorpay = new window.Razorpay(options)
       razorpay.open()
     } catch (err: any) {
+      console.error('=== RAZORPAY PAYMENT ERROR ===', err)
       setError(err.message || 'Failed to initiate payment')
       setLoading(false)
     }
@@ -410,7 +454,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
     }
   }
 
-  const saveOrderToDatabase = async (paymentId: string | null, paymentStatus: string) => {
+  const saveOrderToDatabase = async (paymentId: string | null, paymentStatus: string, paymentMethodParam: string = 'cod') => {
     try {
       const addressData = getSelectedAddressData()
       
@@ -465,6 +509,8 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          user_id: userId,
+          address_id: finalAddressId,
           customer_name: customerDetails.name,
           customer_email: customerDetails.email,
           customer_phone: customerDetails.phone,
@@ -474,7 +520,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
           delivery_fee: deliveryFee,
           total: total,
           payment_status: paymentStatus,
-          payment_method: paymentMethod,
+          payment_method: paymentMethodParam,
           payment_id: paymentId,
           notes: `Address ID: ${finalAddressId || 'new'}, User: ${userId || 'guest'}`
         }),
