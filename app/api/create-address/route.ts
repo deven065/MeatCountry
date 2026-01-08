@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, address: data[0] })
   } catch (error: any) {
     console.error('API route exception:', error)
     return NextResponse.json(

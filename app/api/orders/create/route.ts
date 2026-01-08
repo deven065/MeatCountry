@@ -73,13 +73,27 @@ export async function POST(request: NextRequest) {
     // Generate unique order number
     const order_number = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase()
 
-    // Create order using normalized schema
+    // Prepare items for JSONB column (for backward compatibility)
+    const itemsJSON = items.map((item: any) => ({
+      product_id: item.product_id || null,
+      product_name: item.product_name || item.name,
+      quantity: item.quantity,
+      price: item.price,
+      unit: item.unit || '500g'
+    }))
+
+    // Create order using normalized schema with customer details
     const { data: orderData, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
         order_number,
         user_id,
         address_id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        customer_address,
+        items: itemsJSON, // Store as JSONB for backward compatibility
         subtotal: Math.round(subtotal * 100), // Convert to paisa
         delivery_fee: Math.round((delivery_fee || 0) * 100), // Convert to paisa
         total: Math.round(total * 100), // Convert to paisa

@@ -112,8 +112,12 @@ create policy "Users can delete own addresses" on public.addresses for delete us
 -- Orders table
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
   address_id uuid references public.addresses(id) on delete set null,
+  customer_name text,
+  customer_email text,
+  customer_phone text,
+  customer_address text,
   order_number text unique not null,
   status text not null default 'pending' check (status in ('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded')),
   payment_method text not null check (payment_method in ('razorpay', 'stripe', 'paypal', 'wallet', 'cod')),

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order System Test Suite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .test-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .test-result {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .test-result.pending {
+            background: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+        }
+        .test-result.success {
+            background: #D1FAE5;
+            border-left: 4px solid #10B981;
+        }
+        .test-result.error {
+            background: #FEE2E2;
+            border-left: 4px solid #EF4444;
+        }
+        button {
+            background: #DC2626;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #B91C1C;
+        }
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .summary {
+            background: #1F2937;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-number {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .summary-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        pre {
+            background: #F3F4F6;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .test-details {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🥩 MeatCountry Order System Test Suite</h1>
+        <p>Comprehensive testing for COD and Online Payment systems</p>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        <button onclick="runAllTests()" id="runBtn">▶️ Run All Tests</button>
+        <button onclick="clearResults()">🔄 Clear Results</button>
+    </div>
+
+    <div id="tests-container"></div>
+
+    <div class="summary" id="summary" style="display: none;">
+        <h2>📊 Test Summary</h2>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div class="summary-number" id="total-tests">0</div>
+                <div class="summary-label">Total Tests</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number" style="color: #10B981" id="passed-tests">0</div>
+                <div class="summary-label">Passed</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number" style="color: #EF4444" id="failed-tests">0</div>
+                <div class="summary-label">Failed</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number" id="success-rate">0%</div>
+                <div class="summary-label">Success Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0
+        };
+
+        const testData = {
+            customer: {
+                name: 'Test Customer',
+                email: 'test@meatcountry.com',
+                phone: '+91 9876543210'
+            },
+            address: 'Flat 123, Test Building, Andheri West, Mumbai, Maharashtra - 400053',
+            items: [
+                {
+                    product_id: '550e8400-e29b-41d4-a716-446655440000',
+                    product_name: 'Chicken Breast',
+                    quantity: 2,
+                    price: 299,
+                    unit: '500g'
+                },
+                {
+                    product_id: '550e8400-e29b-41d4-a716-446655440001',
+                    product_name: 'Mutton Curry Cut',
+                    quantity: 1,
+                    price: 599,
+                    unit: '1Kg'
+                }
+            ]
+        };
+
+        function createTestContainer(id, name) {
+            const container = document.createElement('div');
+            container.className = 'test-container';
+            container.id = `test-${id}`;
+            container.innerHTML = `
+                <div class="test-name">${name}</div>
+                <div class="test-result pending" id="result-${id}">⏳ Pending...</div>
+                <div class="test-details" id="details-${id}"></div>
+            `;
+            document.getElementById('tests-container').appendChild(container);
+            return id;
+        }
+
+        function updateResult(id, status, message, details = '') {
+            const result = document.getElementById(`result-${id}`);
+            const detailsEl = document.getElementById(`details-${id}`);
+            
+            result.className = `test-result ${status}`;
+            result.textContent = message;
+            
+            if (details) {
+                detailsEl.innerHTML = `<pre>${details}</pre>`;
+            }
+            
+            if (status === 'success') {
+                testResults.passed++;
+            } else if (status === 'error') {
+                testResults.failed++;
+            }
+            testResults.total++;
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('summary').style.display = 'block';
+            document.getElementById('total-tests').textContent = testResults.total;
+            document.getElementById('passed-tests').textContent = testResults.passed;
+            document.getElementById('failed-tests').textContent = testResults.failed;
+            const rate = testResults.total > 0 ? (testResults.passed / testResults.total * 100).toFixed(1) : 0;
+            document.getElementById('success-rate').textContent = rate + '%';
+        }
+
+        function clearResults() {
+            document.getElementById('tests-container').innerHTML = '';
+            document.getElementById('summary').style.display = 'none';
+            testResults.total = 0;
+            testResults.passed = 0;
+            testResults.failed = 0;
+        }
+
+        async function testCODGuestOrder() {
+            const id = createTestContainer('cod-guest', '📦 Test 1: COD Order - Guest Checkout');
+            
+            try {
+                const subtotal = testData.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const deliveryFee = subtotal > 500 ? 0 : 40;
+                const total = subtotal + deliveryFee;
+
+                const response = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: null,
+                        address_id: null,
+                        customer_name: testData.customer.name,
+                        customer_email: testData.customer.email,
+                        customer_phone: testData.customer.phone,
+                        customer_address: testData.address,
+                        items: testData.items,
+                        subtotal: subtotal,
+                        delivery_fee: deliveryFee,
+                        total: total,
+                        payment_method: 'cod',
+                        payment_status: 'pending'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    updateResult(id, 'success', `✅ Order created successfully!`, 
+                        `Order ID: ${data.order.id}\nOrder Number: ${data.order.order_number}\nTotal: ₹${total}\nPayment: COD`);
+                } else {
+                    updateResult(id, 'error', `❌ Failed: ${data.error || 'Unknown error'}`, JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateResult(id, 'error', `❌ Exception: ${error.message}`, error.stack);
+            }
+        }
+
+        async function testCODWithDetails() {
+            const id = createTestContainer('cod-details', '📝 Test 2: COD Order - With Customer Details');
+            
+            try {
+                const subtotal = testData.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const total = subtotal;
+
+                const response = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: null,
+                        address_id: null,
+                        customer_name: 'John Doe',
+                        customer_email: 'john@example.com',
+                        customer_phone: '+91 9988776655',
+                        customer_address: '456 Main St, Bandra, Mumbai - 400050',
+                        items: testData.items,
+                        subtotal: subtotal,
+                        delivery_fee: 0,
+                        total: total,
+                        payment_method: 'cod',
+                        payment_status: 'pending'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const detailsMatch = 
+                        data.order.customer_name === 'John Doe' &&
+                        data.order.customer_email === 'john@example.com' &&
+                        data.order.customer_phone === '+91 9988776655';
+                    
+                    if (detailsMatch) {
+                        updateResult(id, 'success', `✅ All customer details saved correctly!`, 
+                            `Name: ${data.order.customer_name}\nEmail: ${data.order.customer_email}\nPhone: ${data.order.customer_phone}`);
+                    } else {
+                        updateResult(id, 'error', `❌ Customer details mismatch`, JSON.stringify(data.order, null, 2));
+                    }
+                } else {
+                    updateResult(id, 'error', `❌ Failed: ${data.error || 'Unknown error'}`, JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateResult(id, 'error', `❌ Exception: ${error.message}`, error.stack);
+            }
+        }
+
+        async function testRazorpayOrderCreation() {
+            const id = createTestContainer('razorpay', '💳 Test 3: Razorpay Order Creation');
+            
+            try {
+                const amount = 1348;
+
+                const response = await fetch('/api/razorpay/create-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: amount,
+                        currency: 'INR',
+                        receipt: `test_${Date.now()}`,
+                        notes: {
+                            customer_name: testData.customer.name,
+                            customer_email: testData.customer.email
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success && data.order) {
+                    const correctAmount = data.order.amount === amount * 100;
+                    if (correctAmount) {
+                        updateResult(id, 'success', `✅ Razorpay order created!`, 
+                            `Order ID: ${data.order.id}\nAmount: ₹${amount} (${data.order.amount} paise)\nCurrency: ${data.order.currency}`);
+                    } else {
+                        updateResult(id, 'error', `❌ Amount mismatch`, 
+                            `Expected: ${amount * 100} paise\nGot: ${data.order.amount} paise`);
+                    }
+                } else {
+                    updateResult(id, 'error', `❌ Failed: ${data.error || data.message || 'Unknown error'}`, JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateResult(id, 'error', `❌ Exception: ${error.message}`, error.stack);
+            }
+        }
+
+        async function testErrorHandling() {
+            const id = createTestContainer('error-handling', '⚠️ Test 4: Error Handling - Missing Fields');
+            
+            try {
+                const response = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: testData.items
+                        // Missing required fields
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok && data.error) {
+                    updateResult(id, 'success', `✅ Correctly returned error for missing fields`, 
+                        `Error: ${data.error}`);
+                } else {
+                    updateResult(id, 'error', `❌ Should have returned error`, JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateResult(id, 'error', `❌ Exception: ${error.message}`, error.stack);
+            }
+        }
+
+        async function testAmountConversion() {
+            const id = createTestContainer('amount-conversion', '💰 Test 5: Amount Conversion to Paisa');
+            
+            try {
+                const subtotal = 1000; // ₹1000
+                const response = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: null,
+                        address_id: null,
+                        customer_name: testData.customer.name,
+                        customer_email: testData.customer.email,
+                        customer_phone: testData.customer.phone,
+                        customer_address: testData.address,
+                        items: testData.items,
+                        subtotal: subtotal,
+                        delivery_fee: 0,
+                        total: subtotal,
+                        payment_method: 'cod',
+                        payment_status: 'pending'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const correctConversion = data.order.total === subtotal * 100;
+                    if (correctConversion) {
+                        updateResult(id, 'success', `✅ Amount correctly converted to paisa!`, 
+                            `Rupees: ₹${subtotal}\nPaisa: ${data.order.total}`);
+                    } else {
+                        updateResult(id, 'error', `❌ Amount conversion failed`, 
+                            `Expected: ${subtotal * 100} paise\nGot: ${data.order.total} paise`);
+                    }
+                } else {
+                    updateResult(id, 'error', `❌ Failed: ${data.error || 'Unknown error'}`, JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateResult(id, 'error', `❌ Exception: ${error.message}`, error.stack);
+            }
+        }
+
+        async function runAllTests() {
+            document.getElementById('runBtn').disabled = true;
+            clearResults();
+            
+            await testCODGuestOrder();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testCODWithDetails();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testRazorpayOrderCreation();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testErrorHandling();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testAmountConversion();
+            
+            document.getElementById('runBtn').disabled = false;
+            
+            // Show completion message
+            if (testResults.passed === testResults.total) {
+                alert('🎉 All tests passed! System is working perfectly.');
+            } else {
+                alert(`⚠️ ${testResults.failed} test(s) failed. Check the details above.`);
+            }
+        }
+    </script>
+</body>
+</html>

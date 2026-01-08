@@ -38,7 +38,8 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay')
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('cod')
   const [customerDetails, setCustomerDetails] = useState({
     name: userName || '',
     email: userEmail || '',
@@ -67,6 +68,35 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   const subtotal = items.reduce((a, b) => a + b.price_inr * b.quantity, 0)
   const deliveryFee = subtotal > 500 ? 0 : 40
   const total = subtotal + deliveryFee
+
+  // Check if form is ready to submit
+  const isFormValid = () => {
+    // Check basic details
+    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone) {
+      return false
+    }
+
+    // Check address based on mode
+    if (addressMode === 'saved') {
+      if (addresses.length > 0 && !selectedAddressId) {
+        return false
+      }
+    } else if (addressMode === 'new') {
+      if (showNewAddressForm) {
+        // Detailed form validation
+        if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+          return false
+        }
+      } else {
+        // Quick address validation
+        if (!customerDetails.address || customerDetails.address.trim().length < 10) {
+          return false
+        }
+      }
+    }
+
+    return true
+  }
 
   // Initialize Supabase client
   const supabase = createClient(
@@ -203,9 +233,37 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   const handleRazorpayPayment = async () => {
     console.log('=== RAZORPAY PAYMENT START ===')
     
+    // Basic validation
+    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone) {
+      setError('Please fill in all customer details')
+      return
+    }
+
+    // Address validation
+    if (addressMode === 'saved') {
+      if (addresses.length > 0 && !selectedAddressId) {
+        setError('Please select a delivery address')
+        return
+      }
+    } else if (addressMode === 'new') {
+      if (showNewAddressForm) {
+        // Detailed form validation
+        if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+          setError('Please fill in all address details')
+          return
+        }
+      } else {
+        // Quick address validation
+        if (!customerDetails.address || customerDetails.address.trim().length < 10) {
+          setError('Please enter your complete delivery address')
+          return
+        }
+      }
+    }
+
     const addressData = getSelectedAddressData()
-    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone || !addressData) {
-      setError('Please fill in all customer details and select a delivery address')
+    if (!addressData) {
+      setError('Unable to process address. Please check all fields are filled correctly.')
       return
     }
 
@@ -260,7 +318,20 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
               response.razorpay_signature
             )
 
-            console.log('Payment verified, saving order to database...')
+            console.log('Payment verified, saving address and order to database...')
+            
+            // Save new address if user is authenticated and using detailed form
+            if (userId && showNewAddressForm && addressMode === 'new') {
+              console.log('Saving new address for authenticated user...')
+              try {
+                const savedAddressId = await saveNewAddress()
+                if (savedAddressId) {
+                  console.log('Address saved with ID:', savedAddressId)
+                }
+              } catch (err) {
+                console.warn('Failed to save address, proceeding with order anyway:', err)
+              }
+            }
             
             // Save order to database with Razorpay details
             const savedOrder = await saveOrderToDatabase(response.razorpay_payment_id, 'paid', 'razorpay')
@@ -301,15 +372,6 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
     setError('')
 
     try {
-      // Get address data
-      let addressId: string | null = null
-      let addressData: Address | null = null
-      
-      if (addressMode === 'saved' && selectedAddressId) {
-        addressData = addresses.find(a => a.id === selectedAddressId) || null
-        addressId = selectedAddressId
-      }
-
       // Basic validation
       if (!customerDetails.name || !customerDetails.email || !customerDetails.phone) {
         throw new Error('Please fill in all customer details')
@@ -317,13 +379,46 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
       if (!items || items.length === 0) {
         throw new Error('Your cart is empty')
       }
-      if (addressMode === 'saved' && !addressId && userId) {
-        throw new Error('Please select a delivery address')
+
+      // Address validation
+      if (addressMode === 'saved') {
+        if (addresses.length > 0 && !selectedAddressId) {
+          throw new Error('Please select a delivery address')
+        }
+      } else if (addressMode === 'new') {
+        if (showNewAddressForm) {
+          // Detailed form validation
+          if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+            throw new Error('Please fill in all address details')
+          }
+        } else {
+          // Quick address validation
+          if (!customerDetails.address || customerDetails.address.trim().length < 10) {
+            throw new Error('Please enter your complete delivery address')
+          }
+        }
       }
-      if (addressMode === 'new') {
-        // Validate new address fields
-        if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
-          throw new Error('Please fill in all address details')
+
+      // Get validated address data
+      const addressDataObj = getSelectedAddressData()
+      if (!addressDataObj) {
+        throw new Error('Unable to process address. Please check all fields are filled correctly.')
+      }
+
+      let addressId: string | null = addressDataObj.address_id
+      let fullAddress = addressDataObj.full_address
+
+      // Save new address if user is authenticated and using detailed form
+      if (userId && showNewAddressForm && addressMode === 'new') {
+        console.log('Saving new address for authenticated user...')
+        try {
+          const savedAddressId = await saveNewAddress()
+          if (savedAddressId) {
+            addressId = savedAddressId
+            console.log('Address saved with ID:', savedAddressId)
+          }
+        } catch (err) {
+          console.warn('Failed to save address, proceeding with order anyway:', err)
         }
       }
 
@@ -335,9 +430,7 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         customer_name: customerDetails.name,
         customer_email: customerDetails.email,
         customer_phone: customerDetails.phone,
-        customer_address: addressMode === 'new' 
-          ? `${newAddress.address_line_1}, ${newAddress.address_line_2 ? newAddress.address_line_2 + ', ' : ''}${newAddress.city}, ${newAddress.state} - ${newAddress.pincode}${newAddress.landmark ? ', Near ' + newAddress.landmark : ''}`
-          : addresses.find(a => a.id === addressId)?.address_line_1 || '',
+        customer_address: fullAddress,
         items: items.map(item => ({
           product_id: item.id,
           product_name: item.name,
@@ -420,23 +513,29 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
         }
       }
     } else if (addressMode === 'new') {
+      // Check if using detailed form
       if (showNewAddressForm) {
+        // For detailed form (save for future)
         if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
           return null
         }
         return {
           address_id: null,
           full_address: `${newAddress.address_line_1}${newAddress.address_line_2 ? ', ' + newAddress.address_line_2 : ''}, ${newAddress.landmark ? newAddress.landmark + ', ' : ''}${newAddress.city}, ${newAddress.state} - ${newAddress.pincode}`,
-          phone: newAddress.phone,
-          name: newAddress.full_name
+          phone: newAddress.phone || customerDetails.phone,
+          name: newAddress.full_name || customerDetails.name
         }
       } else {
-        return customerDetails.address ? {
+        // For quick address (simple text)
+        if (!customerDetails.address || customerDetails.address.trim().length < 10) {
+          return null
+        }
+        return {
           address_id: null,
           full_address: customerDetails.address,
           phone: customerDetails.phone,
           name: customerDetails.name
-        } : null
+        }
       }
     }
     return null
@@ -574,6 +673,9 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
   }
 
   const handleCheckout = () => {
+    setAttemptedSubmit(true)
+    setError('') // Clear any previous errors
+    
     if (paymentMethod === 'razorpay') {
       handleRazorpayPayment()
     } else {
@@ -959,6 +1061,13 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
           </div>
         </div>
 
+        {!isFormValid() && !error && (
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-700">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <span>Please fill in all address details</span>
+          </div>
+        )}
+
         {error && (
           <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
             <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
@@ -968,8 +1077,8 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
 
         <button
           onClick={handleCheckout}
-          disabled={loading || items.length === 0}
-          className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-neutral-300 text-white font-semibold py-3 rounded-lg transition-colors"
+          disabled={loading || items.length === 0 || !isFormValid()}
+          className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition-colors"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">

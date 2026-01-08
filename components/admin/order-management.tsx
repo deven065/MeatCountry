@@ -79,22 +79,10 @@ export function OrderManagement() {
     try {
       setLoading(true)
       
-      // Fetch orders with address data
+      // Fetch orders
       const { data: ordersData, error: ordersError } = await supabaseAdmin
         .from('orders')
-        .select(`
-          *,
-          addresses (
-            full_name,
-            phone,
-            address_line_1,
-            address_line_2,
-            city,
-            state,
-            pincode,
-            landmark
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (ordersError) throw ordersError
@@ -120,22 +108,11 @@ export function OrderManagement() {
         }
       }
       
-      // Merge items and format address into orders
-      const ordersWithItems = ordersData?.map(order => {
-        const address = order.addresses
-        const addressText = address 
-          ? `${address.full_name}, ${address.phone}\n${address.address_line_1}${address.address_line_2 ? ', ' + address.address_line_2 : ''}\n${address.city}, ${address.state} - ${address.pincode}${address.landmark ? '\nNear: ' + address.landmark : ''}`
-          : 'Address not available'
-        
-        return {
-          ...order,
-          customer_name: address?.full_name || 'Customer',
-          customer_phone: address?.phone || '',
-          customer_email: '', // Not stored in address
-          customer_address: addressText,
-          items: orderItemsMap[order.id] || []
-        }
-      }) || []
+      // Merge items into orders
+      const ordersWithItems = ordersData?.map(order => ({
+        ...order,
+        items: orderItemsMap[order.id] || []
+      })) || []
       
       setOrders(ordersWithItems as any)
     } catch (error) {
