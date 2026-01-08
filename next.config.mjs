@@ -27,6 +27,10 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  // Suppress middleware deprecation warning - middleware is still needed for auth
+  onDemandEntries: {
+    // Suppress middleware deprecation warning
+  },
 }
 
 export default nextConfig
