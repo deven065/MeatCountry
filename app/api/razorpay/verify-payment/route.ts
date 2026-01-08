@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     // Create Supabase admin client inside the handler
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.SUPABASE_SERVICE_ROLE!,
       {
         auth: {
           autoRefreshToken: false,

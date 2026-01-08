@@ -128,12 +128,12 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
 
   const createOrder = async () => {
     try {
-      // Convert from paise to rupees for the API (API will convert back to paise for Razorpay)
-      const amountInRupees = total / 100
+      // total is already in rupees (from price_inr which is in rupees)
+      const amountInRupees = total
       
       console.log('Creating Razorpay order:', {
         amountInRupees,
-        amountInPaise: total,
+        amountInPaise: total * 100,
         customer: customerDetails.name
       })
       
@@ -311,31 +311,44 @@ export default function Checkout({ userEmail, userName, userPhone, userId }: Che
       }
 
       // Basic validation
-      if (!userId) {
-        throw new Error('Please sign in to place an order')
+      if (!customerDetails.name || !customerDetails.email || !customerDetails.phone) {
+        throw new Error('Please fill in all customer details')
       }
       if (!items || items.length === 0) {
         throw new Error('Your cart is empty')
       }
-      if (addressMode === 'saved' && !addressId) {
+      if (addressMode === 'saved' && !addressId && userId) {
         throw new Error('Please select a delivery address')
+      }
+      if (addressMode === 'new') {
+        // Validate new address fields
+        if (!newAddress.address_line_1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+          throw new Error('Please fill in all address details')
+        }
       }
 
       // Prepare order data with proper schema
+      // For guest orders, include customer details in the order
       const orderData = {
-        user_id: userId,
-        address_id: addressId,
+        user_id: userId || null, // Allow null for guest orders
+        address_id: addressId || null,
+        customer_name: customerDetails.name,
+        customer_email: customerDetails.email,
+        customer_phone: customerDetails.phone,
+        customer_address: addressMode === 'new' 
+          ? `${newAddress.address_line_1}, ${newAddress.address_line_2 ? newAddress.address_line_2 + ', ' : ''}${newAddress.city}, ${newAddress.state} - ${newAddress.pincode}${newAddress.landmark ? ', Near ' + newAddress.landmark : ''}`
+          : addresses.find(a => a.id === addressId)?.address_line_1 || '',
         items: items.map(item => ({
           product_id: item.id,
           product_name: item.name,
           product_image: item.image || null,
           quantity: item.quantity,
-          price: item.price_inr / 100, // Convert from paisa to rupees
+          price: item.price_inr, // Already in rupees
           unit: item.unit
         })),
-        subtotal: subtotal / 100, // Convert to rupees
-        delivery_fee: deliveryFee / 100, // Convert to rupees
-        total: total / 100, // Convert to rupees
+        subtotal: subtotal, // Already in rupees
+        delivery_fee: deliveryFee, // Already in rupees
+        total: total, // Already in rupees
         payment_method: 'cod',
         payment_status: 'pending'
       }

@@ -4,15 +4,15 @@ import { createClient } from '@supabase/supabase-js'
 export async function POST(request: NextRequest) {
   try {
     // Validate environment variables
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE) {
       console.error('Missing environment variables:', {
         hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE,
       })
       return NextResponse.json(
         { 
           error: 'Server configuration error',
-          details: 'Missing Supabase credentials. Please check SUPABASE_SERVICE_ROLE_KEY in .env.local and restart the dev server.'
+          details: 'Missing Supabase credentials. Please check SUPABASE_SERVICE_ROLE in .env.local and restart the dev server.'
         },
         { status: 500 }
       )
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     // Create admin client for this request
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      process.env.SUPABASE_SERVICE_ROLE,
       {
         auth: {
           autoRefreshToken: false,

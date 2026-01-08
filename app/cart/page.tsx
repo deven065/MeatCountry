@@ -1,15 +1,27 @@
 "use client"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import useCart from '@/components/store/cart'
 import Price from '@/components/price'
 import Checkout from '@/components/checkout'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { supabaseClient } from '@/lib/supabase/client'
 
 export default function CartPage() {
   const { items, setQty, remove, clear } = useCart()
   const [showCheckout, setShowCheckout] = useState(false)
+  const [user, setUser] = useState<any>(null)
   const subtotal = items.reduce((a, b) => a + b.price_inr * b.quantity, 0)
+  
+  // Fetch user on component mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      const sb = supabaseClient()
+      const { data: { user } } = await sb.auth.getUser()
+      setUser(user)
+    }
+    fetchUser()
+  }, [])
   
   if (showCheckout) {
     return (
@@ -22,7 +34,12 @@ export default function CartPage() {
           Back to Cart
         </button>
         <h1 className="text-2xl font-semibold mb-6">Checkout</h1>
-        <Checkout />
+        <Checkout 
+          userId={user?.id}
+          userName={user?.user_metadata?.full_name}
+          userEmail={user?.email}
+          userPhone={user?.user_metadata?.phone}
+        />
       </div>
     )
   }
